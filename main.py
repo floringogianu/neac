@@ -90,83 +90,6 @@ class PolicyEvaluation:
         del self._policies[:]
 
 
-def train(env, policy, policy_evaluation, opt):
-    """ Training routine.
-    """
-    log = rlog.getLogger(f"{opt.experiment}.train")
-    log_fmt = (
-        "[{0:6d}/{ep_cnt:5d}] R/ep={R/ep:8.2f}, V/step={V/step:8.2f}"
-        + " | steps/ep={steps/ep:8.2f}, fps={learning_fps:8.2f}."
-    )
-    log.reset()
-
-    ep_cnt, step_cnt = 1, 1
-    while step_cnt <= opt.training_steps:
-
-        for state, pi, reward, state_, done in Episode(env, policy):
-            policy_evaluation.learn(state, pi, reward, state_, done)
-            log.put(
-                reward=reward,
-                value=pi.value.data.squeeze().item(),
-                done=done,
-                frame_no=1,
-                step_no=1,
-            )
-            step_cnt += 1
-
-        if ep_cnt % opt.log_interval == 0:
-            summary = log.summarize()
-            log.info(log_fmt.format(step_cnt, **summary))
-            log.trace(step=step_cnt, **summary)
-            log.reset()
-            gc.collect()
-        ep_cnt += 1
-    env.close()
-
-
-class TorchWrapper(gym.ObservationWrapper):
-    """ Applies a couple of transformations depending on the mode.
-        Receives numpy arrays and returns torch tensors.
-    """
-
-    def __init__(self, env, device=DEVICE):
-        super().__init__(env)
-        self._device = device
-
-    def observation(self, obs):
-        return torch.from_numpy(obs).float().unsqueeze(0).to(self._device)
-
-
-class ActorCriticEstimator(nn.Module):
-    def __init__(self, state_sz, action_num, hidden_size=64):
-        super().__init__()
-        self.affine1 = nn.Linear(state_sz, hidden_size)
-        self.policy = nn.Linear(hidden_size, action_num)
-        self.value = nn.Linear(hidden_size, 1)
-
-    def forward(self, x):
-        x = F.relu(self.affine1(x))
-        return self.policy(x), self.value(x)
-
-
-class DNDEstimator(nn.Module):
-    def __init__(self, state_sz, action_num, dnd_size=20_000, hidden_size=64):
-        super().__init__()
-        self.affine1 = nn.Linear(state_sz, hidden_size)
-        self.policy = nn.Linear(hidden_size, action_num)
-        self.value = DND(hidden_size, torch.device("cpu"), max_size=dnd_size)
-
-    def forward(self, x):
-        h = F.relu(self.affine1(x))
-        if self.value.ready:
-            return self.policy(h), self.value.lookup(h), h
-        self.value.write(h, torch.tensor([[0.0]]), lambda v, v_: v_)
-        return self.policy(h), torch.tensor([[0.0]]), h
-
-    def write(self, h, v, update_rule):
-        self.value.write(h, v, update_rule)
-
-
 class DNDPolicyImprovement:
     """ Defines a behaviour.
     """
@@ -225,6 +148,83 @@ class DNDPolicyEvaluation(PolicyEvaluation):
         self._policy.rebuild_dnd()
 
 
+class ActorCriticEstimator(nn.Module):
+    def __init__(self, state_sz, action_num, hidden_size=64):
+        super().__init__()
+        self.affine1 = nn.Linear(state_sz, hidden_size)
+        self.policy = nn.Linear(hidden_size, action_num)
+        self.value = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        x = F.relu(self.affine1(x))
+        return self.policy(x), self.value(x)
+
+
+class DNDEstimator(nn.Module):
+    def __init__(self, state_sz, action_num, dnd_size=20_000, hidden_size=64):
+        super().__init__()
+        self.affine1 = nn.Linear(state_sz, hidden_size)
+        self.policy = nn.Linear(hidden_size, action_num)
+        self.value = DND(hidden_size, torch.device("cpu"), max_size=dnd_size)
+
+    def forward(self, x):
+        h = F.relu(self.affine1(x))
+        if self.value.ready:
+            return self.policy(h), self.value.lookup(h), h
+        self.value.write(h, torch.tensor([[0.0]]), lambda v, v_: v_)
+        return self.policy(h), torch.tensor([[0.0]]), h
+
+    def write(self, h, v, update_rule):
+        self.value.write(h, v, update_rule)
+
+
+def train(env, policy, policy_evaluation, opt):
+    """ Training routine.
+    """
+    log = rlog.getLogger(f"{opt.experiment}.train")
+    log_fmt = (
+        "[{0:6d}/{ep_cnt:5d}] R/ep={R/ep:8.2f}, V/step={V/step:8.2f}"
+        + " | steps/ep={steps/ep:8.2f}, fps={learning_fps:8.2f}."
+    )
+    log.reset()
+
+    ep_cnt, step_cnt = 1, 1
+    while step_cnt <= opt.training_steps:
+
+        for state, pi, reward, state_, done in Episode(env, policy):
+            policy_evaluation.learn(state, pi, reward, state_, done)
+            log.put(
+                reward=reward,
+                value=pi.value.data.squeeze().item(),
+                done=done,
+                frame_no=1,
+                step_no=1,
+            )
+            step_cnt += 1
+
+        if ep_cnt % opt.log_interval == 0:
+            summary = log.summarize()
+            log.info(log_fmt.format(step_cnt, **summary))
+            log.trace(step=step_cnt, **summary)
+            log.reset()
+            gc.collect()
+        ep_cnt += 1
+    env.close()
+
+
+class TorchWrapper(gym.ObservationWrapper):
+    """ Applies a couple of transformations depending on the mode.
+        Receives numpy arrays and returns torch tensors.
+    """
+
+    def __init__(self, env, device=DEVICE):
+        super().__init__(env)
+        self._device = device
+
+    def observation(self, obs):
+        return torch.from_numpy(obs).float().unsqueeze(0).to(self._device)
+
+
 AGENTS = {
     "a2c": {
         "estimator": ActorCriticEstimator,
@@ -257,7 +257,7 @@ def build_agent(opt, env):
         opt.nsteps,
         optim.Adam(estimator.parameters(), lr=opt.lr, eps=1e-05),
         beta=opt.beta_entropy,
-        dnd_lr=opt.dnd.lr if hasattr(opt, "dnd") else None
+        dnd_lr=opt.dnd.lr if hasattr(opt, "dnd") else None,
     )
     return policy, policy_evaluation
 
