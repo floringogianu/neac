@@ -1,0 +1,11 @@
+experiment: a2c
+env_name: LunarLander-v2
+base_seed: 42
+
+training_episodes: 5000
+gamma: 0.90
+nsteps: 30
+lr: 0.001
+reward_standardization: no
+
+log_interval: 50
