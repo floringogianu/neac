@@ -26,10 +26,13 @@ dependencies:
   - joblib=0.14.0=py_0
   - jpeg=9b=h024ee3a_2
   - lazy-object-proxy=1.4.3=py37h7b6447c_0
+  - libblas=3.8.0=14_mkl
+  - libcblas=3.8.0=14_mkl
   - libedit=3.1.20181209=hc058e9b_0
   - libffi=3.2.1=hd88cf55_4
   - libgcc-ng=9.1.0=hdf63c60_0
   - libgfortran-ng=7.3.0=hdf63c60_0
+  - liblapack=3.8.0=14_mkl
   - libpng=1.6.37=hbc83047_0
   - libstdcxx-ng=9.1.0=hdf63c60_0
   - libtiff=4.1.0=h2733197_0
@@ -59,6 +62,7 @@ dependencies:
   - pytorch=1.3.1=py3.7_cuda10.1.243_cudnn7.6.3_0
   - readline=7.0=h7b6447c_5
   - scikit-learn=0.21.3=py37hd81dba3_0
+  - scipy=1.3.2=py37h921218d_0
   - setuptools=41.6.0=py37_0
   - six=1.13.0=py37_0
   - sqlite=3.30.1=h7b6447c_0
@@ -73,27 +77,74 @@ dependencies:
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.3.7=h0b5b093_0
   - pip:
+    - absl-py==0.8.1
+    - astor==0.8.0
+    - bayesian-optimization==1.0.1
     - box2d-py==2.3.8
+    - cachetools==3.1.1
+    - chardet==3.0.4
     - cloudpickle==1.2.2
     - colorama==0.4.1
     - coverage==4.5.4
+    - docs==0.2.2
+    - filelock==3.0.12
+    - funcsigs==1.0.2
     - future==0.18.2
+    - gast==0.2.2
     - gitdb2==2.0.6
     - gitpython==3.0.4
+    - google-auth==1.7.1
+    - google-auth-oauthlib==0.4.1
+    - google-pasta==0.1.8
     - green==3.0.0
+    - grpcio==1.25.0
     - gym==0.15.4
-    - liftoff==0.3.0
+    - h5py==2.10.0
+    - idna==2.8
+    - importlib-metadata==0.23
+    - jsonschema==3.2.0
+    - keras-applications==1.0.8
+    - keras-preprocessing==1.1.0
+    - git+git://github.com/tudor-berariu/liftoff.git@master#egg=liftoff
     - lxml==4.4.1
+    - markdown==3.1.1
+    - more-itertools==7.2.0
+    - networkx==2.2
+    - oauthlib==3.1.0
     - opencv-python==4.1.1.26
+    - opt-einsum==3.1.0
+    - packaging==19.2
+    - pluggy==0.13.0
+    - protobuf==3.10.0
+    - psutil==5.6.5
+    - py==1.8.0
+    - py-spy==0.3.0
+    - pyasn1==0.4.8
+    - pyasn1-modules==0.2.7
     - pyglet==1.3.2
+    - pyparsing==2.4.5
     - pyperclip==1.7.0
+    - pyrsistent==0.15.5
+    - pytest==5.3.0
     - pyyaml==5.1.2
+    - ray==0.7.6
+    - redis==3.3.11
+    - requests==2.22.0
+    - requests-oauthlib==1.3.0
     - git+git://github.com/floringogianu/rlog.git@master#egg=rlog
-    - scipy==1.3.2
+    - rsa==4.0
+    - setproctitle==1.1.10
     - smmap2==2.0.5
     - tabulate==0.8.5
+    - tensorboard==2.0.1
+    - tensorflow==2.0.0
+    - tensorflow-estimator==2.0.1
     - termcolor==1.1.0
     - timebudget==0.7
+    - tqdm==4.38.0
     - unidecode==1.1.1
+    - urllib3==1.25.7
+    - werkzeug==0.16.0
+    - zipp==0.6.0
 prefix: /opt/miniconda3/envs/aec
 

@@ -11,6 +11,7 @@ import torch.optim as optim
 from torch.distributions import Categorical
 import rlog
 from liftoff import parse_opts
+from ray import tune
 
 import src.io_utils as U
 from src.rl_routines import Episode
@@ -208,6 +209,7 @@ def train(env, policy, policy_evaluation, opt):
             log.trace(step=step_cnt, **summary)
             log.reset()
             gc.collect()
+            tune.track.log(episodic_return=summary["R/ep"])
         ep_cnt += 1
     env.close()
 
