@@ -129,10 +129,7 @@ class DND:
 
     @property
     def ready(self):
-        is_ready = len(self._dict) >= self._knn_no
-        if self._kd_tree is None and is_ready:
-            self.rebuild_tree()
-        return is_ready
+        return len(self._dict) > self._knn_no and self._kd_tree is not None
 
     def write(self, h, v, update_rule=None):
         """ Writes to the DND.
@@ -181,7 +178,8 @@ class DND:
         return torch.sum(vs * weights, 0, keepdim=True)
 
     def rebuild_tree(self):
-        """ Rebuilds the KDTree using the keys stored so far.
+        """ Rebuilds the KDTree using the keys stored so far but only
+        if the there are enough keys.
         """
         if self._kd_tree is not None:
             del self._kd_tree
@@ -191,7 +189,9 @@ class DND:
         else:
             crt_idx = len(self._dict)
             keys = self._dict.keys().numpy()[:crt_idx]
-        self._kd_tree = KDTree(keys)
+
+        if len(self._dict) >= self._knn_no:
+            self._kd_tree = KDTree(keys)
 
     def _increment_priority(self, keys):
         for key in keys:
