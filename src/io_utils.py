@@ -102,6 +102,42 @@ def namespace_to_dict(namespace: Namespace) -> dict:
     return dct
 
 
+def flatten_dict(dct: dict, prev_key: str = None) -> dict:
+    """Recursive flattening a Namespace"""
+    flat_dct: dict = {}
+    for key, value in dct.items():
+        new_key = f"{prev_key}.{key}" if prev_key is not None else key
+        if isinstance(value, dict):
+            flat_dct.update(flatten_dict(value, prev_key=new_key))
+        else:
+            flat_dct[new_key] = value
+    return flat_dct
+
+
+def _expand_from_keys(keys: list, value: object) -> dict:
+    dct = d = {}
+    while keys:
+        key = keys.pop(0)
+        d[key] = {} if keys else value
+        d = d[key]
+    return dct
+
+
+def expand_dict(flat_dict: dict) -> dict:
+    exp_dict = {}
+    for key, value in flat_dict.items():
+        if "." in key:
+            keys = key.split(".")
+            key_ = keys.pop(0)
+            if key_ in exp_dict:
+                exp_dict[key_].update(_expand_from_keys(keys, value))
+            else:
+                exp_dict[key_] = _expand_from_keys(keys, value)
+        else:
+            exp_dict[key] = value
+    return exp_dict
+
+
 def read_config(cfg_path):
     """ Read a config file and return a namespace.
     """
