@@ -1,6 +1,7 @@
 """ Episodic Actor Critic
 """
 from collections import namedtuple
+from copy import deepcopy
 import gc
 
 import gym
@@ -21,6 +22,82 @@ from src.dnd import DND
 DEVICE = torch.device("cpu")
 Policy = namedtuple("Policy", ["action", "pi", "value"])
 DNDPolicy = namedtuple("DNDpolicy", ["action", "pi", "value", "h"])
+
+
+def train(env, policy, policy_evaluation, opt):
+    """ Training routine.
+    """
+    log = rlog.getLogger(f"{opt.experiment}.train")
+    log_fmt = (
+        "[{0:6d}/{ep_cnt:5d}] R/ep={R/ep:8.2f}, V/step={V/step:8.2f}"
+        + " | steps/ep={steps/ep:8.2f}, fps={fps:8.2f}."
+    )
+    log.reset()
+
+    ep_cnt, step_cnt = 1, 1
+    while step_cnt <= opt.training_steps:
+
+        for state, pi, reward, state_, done in Episode(env, policy):
+            policy_evaluation.learn(state, pi, reward, state_, done)
+            log.put(
+                reward=reward,
+                value=pi.value.data.squeeze().item(),
+                done=done,
+                frame_no=1,
+                step_no=1,
+            )
+
+            step_cnt += 1
+
+            if step_cnt % opt.val_frequency == 0:
+                validate(policy, opt, step_cnt)
+
+        if ep_cnt % opt.log_frequency == 0:
+            summary = log.summarize()
+            log.info(log_fmt.format(step_cnt, **summary))
+            log.trace(step=step_cnt, **summary)
+            log.reset()
+            gc.collect()
+        ep_cnt += 1
+    env.close()
+
+
+def validate(policy, opt, crt_step):
+    """ Validation routine """
+    env = TorchWrapper(gym.make(opt.env_name))
+    policy = deepcopy(policy)
+    log = rlog.getLogger(f"{opt.experiment}.valid")
+    log_fmt = (
+        "@{0:6d}        R/ep={R/ep:8.2f}, RunR/ep={RR/ep:8.2f}"
+        + " | steps/ep={steps/ep:8.2f}, fps={fps:8.2f}."
+    )
+    log.reset()  # so we don't screw up the timer
+
+    for _ in range(1, opt.val_episodes):
+        with torch.no_grad():
+            for _, pi, reward, _, done in Episode(env, policy):
+                log.put(
+                    reward=reward,
+                    value=pi.value.data.squeeze().item(),
+                    done=done,
+                    frame_no=1,
+                    step_no=1,
+                )
+
+    summary = log.summarize()
+    log.info(log_fmt.format(crt_step, **summary))
+    log.trace(step=crt_step, **summary)
+    log.reset()
+    try:
+        tune.track.log(
+            episodic_return=summary["R/ep"],
+            running_return=summary["RR/ep"],
+            value_estimate=summary["V/step"],
+            train_step=crt_step,
+        )
+    except AttributeError as err:
+        log.debug("Probably not in a ray experiment\n: %s", err)
+    gc.collect()
 
 
 class PolicyImprovement:
@@ -177,41 +254,6 @@ class DNDEstimator(nn.Module):
 
     def write(self, h, v, update_rule):
         self.value.write(h, v, update_rule)
-
-
-def train(env, policy, policy_evaluation, opt):
-    """ Training routine.
-    """
-    log = rlog.getLogger(f"{opt.experiment}.train")
-    log_fmt = (
-        "[{0:6d}/{ep_cnt:5d}] R/ep={R/ep:8.2f}, V/step={V/step:8.2f}"
-        + " | steps/ep={steps/ep:8.2f}, fps={learning_fps:8.2f}."
-    )
-    log.reset()
-
-    ep_cnt, step_cnt = 1, 1
-    while step_cnt <= opt.training_steps:
-
-        for state, pi, reward, state_, done in Episode(env, policy):
-            policy_evaluation.learn(state, pi, reward, state_, done)
-            log.put(
-                reward=reward,
-                value=pi.value.data.squeeze().item(),
-                done=done,
-                frame_no=1,
-                step_no=1,
-            )
-            step_cnt += 1
-
-        if ep_cnt % opt.log_interval == 0:
-            summary = log.summarize()
-            log.info(log_fmt.format(step_cnt, **summary))
-            log.trace(step=step_cnt, **summary)
-            log.reset()
-            gc.collect()
-            tune.track.log(episodic_return=summary["R/ep"])
-        ep_cnt += 1
-    env.close()
 
 
 class TorchWrapper(gym.ObservationWrapper):

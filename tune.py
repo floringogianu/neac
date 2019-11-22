@@ -36,7 +36,6 @@ def trial2string(trial):
 
 
 def get_search_space(search_cfg):
-
     search_space = {}
     if "hyperopt" in search_cfg:
         search_cfg = flatten_dict(search_cfg["hyperopt"])
@@ -59,8 +58,10 @@ def get_search_space(search_cfg):
 
 
 def main(cmdl):
-    max_workers = 32
-    trials = 512  ## whoa!
+    max_workers = 4
+    trials = 16  ## whoa!
+    max_length = 1_000_000  # training steps
+    grace_period = 100_000
 
     base_cfg = namespace_to_dict(read_config(Path(cmdl.cfg) / "default.yaml"))
     search_cfg = namespace_to_dict(read_config(Path(cmdl.cfg) / "search.yaml"))
@@ -68,9 +69,10 @@ def main(cmdl):
     # the search space
     search_space = get_search_space(search_cfg)
 
-    search_name = "{timestep}_tune_{algo_name}".format(
+    search_name = "{timestep}_tune_{algo_name}{dev}".format(
         timestep="{:%Y%b%d-%H%M%S}".format(datetime.now()),
         algo_name=base_cfg["algo"],
+        dev="_dev" if cmdl.dev else "",
     )
 
     # search algorithm
@@ -83,10 +85,11 @@ def main(cmdl):
 
     # early stopping
     scheduler = ASHAScheduler(
+        time_attr="train_step",
         metric="episodic_return",
         mode="max",
-        max_t=200,  # max length of the experiment
-        grace_period=50,  # stops after 20 logged steps
+        max_t=max_length,  # max length of the experiment
+        grace_period=grace_period,  # stops after 20 logged steps
         brackets=3,  # don't know what this does
     )
 
@@ -114,4 +117,5 @@ if __name__ == "__main__":
     PARSER.add_argument(
         "--cfg", "-c", type=str, help="Path to the configuration folder."
     )
+    PARSER.add_argument("--dev", "-d", action="store_true", help="Dev mode.")
     main(PARSER.parse_args())

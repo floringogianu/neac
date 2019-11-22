@@ -14,4 +14,6 @@ nsteps: 50
 beta_entropy: 0.001
 lr: 0.005
 
-log_interval: 50
+log_frequency: 100  # episodes
+val_frequency: 25000  # steps
+val_episodes: 100
