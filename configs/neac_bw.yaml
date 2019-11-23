@@ -1,0 +1,19 @@
+experiment: neac_bw
+algo: neac
+env_name: BipedalWalker-v2
+base_seed: 42
+
+dnd:
+  size: 3_000
+  key_size: 64
+  lr: 0.2
+
+training_steps: 2000000
+gamma: 0.99
+nsteps: 50
+beta_entropy: 0.001
+lr: 0.005
+
+log_frequency: 100  # episodes
+val_frequency: 25000  # steps
+val_episodes: 100

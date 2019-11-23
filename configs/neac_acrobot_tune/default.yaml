@@ -1,0 +1,19 @@
+experiment: neac_ab
+algo: neac
+env_name: Acrobot-v1
+base_seed: 42
+
+training_steps: 10000
+gamma: 0.99
+nsteps: 30
+beta_entropy: 0.001
+lr: 0.001
+
+dnd:
+  size: 1_000
+  key_size: 32
+  lr: 0.2
+
+log_frequency: 2  # episodes
+val_frequency: 500 # steps
+val_episodes: 100
