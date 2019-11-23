@@ -21,7 +21,7 @@ class Episode:
 
         _pi = self.policy.act(self.__state)
         _state = self.__state.clone()
-        self.__state, reward, self.__done, _ = self.env.step(_pi.action.item())
+        self.__state, reward, self.__done, _ = self.env.step(_pi.action)
 
         self.__R += reward
         self.__step_cnt += 1

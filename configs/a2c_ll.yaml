@@ -1,4 +1,4 @@
-experiment: a2c
+experiment: a2c-ll
 algo: a2c
 env_name: LunarLander-v2
 base_seed: 42
