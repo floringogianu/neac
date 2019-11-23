@@ -20,17 +20,19 @@ def configure_logger(opt):
             rlog.AvgMetric("V/step", metargs=["value", 1]),
             rlog.SumMetric("ep_cnt", resetable=False, metargs=["done"]),
             rlog.AvgMetric("steps/ep", metargs=["step_no", "done"]),
-            rlog.FPSMetric("learning_fps", metargs=["frame_no"]),
+            rlog.FPSMetric("fps", metargs=["frame_no"]),
         ]
     )
-    test_log = rlog.getLogger(opt.experiment + ".test")
-    test_log.addMetrics(
+    val_log = rlog.getLogger(opt.experiment + ".valid")
+    val_log.addMetrics(
         [
             rlog.AvgMetric("R/ep", metargs=["reward", "done"]),
-            rlog.SumMetric("ep_cnt", resetable=False, metargs=["done"]),
+            rlog.AvgMetric(
+                "RR/ep", resetable=False, eps=0.8, metargs=["reward", "done"]
+            ),
+            rlog.AvgMetric("V/step", metargs=["value", 1]),
             rlog.AvgMetric("steps/ep", metargs=["frame_no", "done"]),
-            rlog.FPSMetric("test_fps", metargs=["frame_no"]),
-            rlog.MaxMetric("max_q", metargs=["qval"]),
+            rlog.FPSMetric("fps", metargs=["frame_no"]),
         ]
     )
 
@@ -88,7 +90,6 @@ def dict_to_namespace(dct: dict) -> Namespace:
         else:
             setattr(namespace, name, value)
     return namespace
-
 
 
 def namespace_to_dict(namespace: Namespace) -> dict:

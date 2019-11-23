@@ -1,0 +1,15 @@
+experiment: a2c-bw
+algo: a2c
+env_name: BipedalWalker-v2
+base_seed: 42
+
+training_steps: 1000000
+gamma: 0.99
+nsteps: 60
+beta_entropy: 0.001
+lr: 0.001
+hidden_size: 64
+
+log_frequency: 50  # episodes
+val_frequency: 25000  # steps
+val_episodes: 100

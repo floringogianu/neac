@@ -1,6 +1,7 @@
 """ Episodic Actor Critic
 """
 from collections import namedtuple
+from copy import deepcopy
 import gc
 
 import gym
@@ -8,10 +9,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.distributions import Categorical
+from torch.distributions import Categorical, Normal
 import rlog
 from liftoff import parse_opts
 from ray import tune
+from termcolor import colored as clr
 
 import src.io_utils as U
 from src.rl_routines import Episode
@@ -21,6 +23,82 @@ from src.dnd import DND
 DEVICE = torch.device("cpu")
 Policy = namedtuple("Policy", ["action", "pi", "value"])
 DNDPolicy = namedtuple("DNDpolicy", ["action", "pi", "value", "h"])
+
+
+def train(env, policy, policy_evaluation, opt):
+    """ Training routine.
+    """
+    log = rlog.getLogger(f"{opt.experiment}.train")
+    log_fmt = (
+        "[{0:6d}/{ep_cnt:5d}] R/ep={R/ep:8.2f}, V/step={V/step:8.2f}"
+        + " | steps/ep={steps/ep:8.2f}, fps={fps:8.2f}."
+    )
+    log.reset()
+
+    ep_cnt, step_cnt = 1, 1
+    while step_cnt <= opt.training_steps:
+
+        for state, pi, reward, state_, done in Episode(env, policy):
+            policy_evaluation.learn(state, pi, reward, state_, done)
+            log.put(
+                reward=reward,
+                value=pi.value.data.squeeze().item(),
+                done=done,
+                frame_no=1,
+                step_no=1,
+            )
+
+            step_cnt += 1
+
+            if step_cnt % opt.val_frequency == 0:
+                validate(policy, opt, step_cnt)
+
+        if ep_cnt % opt.log_frequency == 0:
+            summary = log.summarize()
+            log.info(log_fmt.format(step_cnt, **summary))
+            log.trace(step=step_cnt, **summary)
+            log.reset()
+            gc.collect()
+        ep_cnt += 1
+    env.close()
+
+
+def validate(policy, opt, crt_step):
+    """ Validation routine """
+    env = ActionWrapper(TorchWrapper(gym.make(opt.env_name)))
+    policy = deepcopy(policy)
+    log = rlog.getLogger(f"{opt.experiment}.valid")
+    log_fmt = (
+        "@{0:6d}        R/ep={R/ep:8.2f}, RunR/ep={RR/ep:8.2f}"
+        + " | steps/ep={steps/ep:8.2f}, fps={fps:8.2f}."
+    )
+    log.reset()  # so we don't screw up the timer
+
+    for _ in range(1, opt.val_episodes):
+        with torch.no_grad():
+            for _, pi, reward, _, done in Episode(env, policy):
+                log.put(
+                    reward=reward,
+                    value=pi.value.data.squeeze().item(),
+                    done=done,
+                    frame_no=1,
+                    step_no=1,
+                )
+
+    summary = log.summarize()
+    log.info(log_fmt.format(crt_step, **summary))
+    log.trace(step=crt_step, **summary)
+    log.reset()
+    try:
+        tune.track.log(
+            episodic_return=summary["R/ep"],
+            running_return=summary["RR/ep"],
+            value_estimate=summary["V/step"],
+            train_step=crt_step,
+        )
+    except AttributeError as err:
+        log.debug("Probably not in a ray experiment\n: %s", err)
+    gc.collect()
 
 
 class PolicyImprovement:
@@ -33,12 +111,14 @@ class PolicyImprovement:
     def act(self, state):
         """ Sample from the policy.
         """
-        logits, value = self.__estimator(state)
-        pi = Categorical(F.softmax(logits, dim=-1))
+        pi, value = self.__estimator(state)
         return Policy(pi.sample(), pi, value)
 
     def __call__(self, state):
         return self.act(state)
+
+    def __str__(self):
+        return "{}({})".format(self.__class__.__name__, self.__estimator)
 
 
 class PolicyEvaluation:
@@ -71,11 +151,11 @@ class PolicyEvaluation:
         for r in self._rewards[::-1]:
             R = r + self._gamma * R
             Rs.insert(0, R)
-        return torch.tensor(Rs)
+        return torch.tensor(Rs).unsqueeze(1)
 
     def _update_policy(self, done, state_):
         returns = self._compute_returns(done, state_).to(DEVICE)
-        values = torch.cat([p.value for p in self._policies]).squeeze(1)
+        values = torch.cat([p.value for p in self._policies])
         log_pi = torch.cat([p.pi.log_prob(p.action) for p in self._policies])
         entropy = torch.cat([p.pi.entropy() for p in self._policies])
         advantage = returns - values
@@ -101,8 +181,7 @@ class DNDPolicyImprovement:
     def act(self, state):
         """ Sample from the policy.
         """
-        logits, value, h = self.__estimator(state)
-        pi = Categorical(F.softmax(logits, dim=-1))
+        pi, value, h = self.__estimator(state)
         return DNDPolicy(pi.sample(), pi, value, h)
 
     def write(self, h, v, update_rule):
@@ -113,6 +192,9 @@ class DNDPolicyImprovement:
 
     def __call__(self, state):
         return self.act(state)
+
+    def __str__(self):
+        return "{}({})".format(self.__class__.__name__, self.__estimator)
 
 
 class DNDPolicyEvaluation(PolicyEvaluation):
@@ -132,7 +214,7 @@ class DNDPolicyEvaluation(PolicyEvaluation):
             self._policy.write(pi.h, returns.data[i], self._update_rule)
 
         # update policy and embedding network
-        values = torch.cat([p.value for p in self._policies]).squeeze(1)
+        values = torch.cat([p.value for p in self._policies])
         log_pi = torch.cat([p.pi.log_prob(p.action) for p in self._policies])
         entropy = torch.cat([p.pi.entropy() for p in self._policies])
         advantage = returns - values
@@ -149,23 +231,57 @@ class DNDPolicyEvaluation(PolicyEvaluation):
         self._policy.rebuild_dnd()
 
 
+class DiscretePolicy(nn.Module):
+    def __init__(self, hidden_size, action_num):
+        super().__init__()
+        self._policy = nn.Linear(hidden_size, action_num)
+
+    def forward(self, x):
+        logits = self._policy(x)
+        return Categorical(F.softmax(logits, dim=-1))
+
+
+class ContinuousPolicy(nn.Module):
+    def __init__(self, hidden_size, action_num):
+        super().__init__()
+        self._policy = nn.Linear(hidden_size, 2 * action_num)
+        self._action_num = action_num
+
+    def forward(self, x):
+        out = self._policy(x)
+        mu = torch.tanh(out[:, : self._action_num])
+        std = F.softplus(out[:, self._action_num :]).clamp(1e-6, 5)
+        return Normal(mu, std)
+
+
+def get_policy_family(action_space, hidden_size):
+    try:
+        # discrete actions
+        actions = action_space.n
+        return DiscretePolicy(hidden_size, actions)
+    except AttributeError:
+        actions = action_space.shape[0]
+        return ContinuousPolicy(hidden_size, actions)
+
+
 class ActorCriticEstimator(nn.Module):
-    def __init__(self, state_sz, action_num, hidden_size=64):
+    def __init__(self, state_sz, action_space, hidden_size=64):
         super().__init__()
         self.affine1 = nn.Linear(state_sz, hidden_size)
-        self.policy = nn.Linear(hidden_size, action_num)
+        self.policy = get_policy_family(action_space, hidden_size)
         self.value = nn.Linear(hidden_size, 1)
 
     def forward(self, x):
         x = F.relu(self.affine1(x))
-        return self.policy(x), self.value(x)
+        pi, value = self.policy(x), self.value(x)
+        return pi, value
 
 
 class DNDEstimator(nn.Module):
-    def __init__(self, state_sz, action_num, dnd_size=20_000, hidden_size=64):
+    def __init__(self, state_sz, action_space, dnd_size=20_000, hidden_size=64):
         super().__init__()
         self.affine1 = nn.Linear(state_sz, hidden_size)
-        self.policy = nn.Linear(hidden_size, action_num)
+        self.policy = get_policy_family(action_space, hidden_size)
         self.value = DND(hidden_size, torch.device("cpu"), max_size=dnd_size)
 
     def forward(self, x):
@@ -179,41 +295,6 @@ class DNDEstimator(nn.Module):
         self.value.write(h, v, update_rule)
 
 
-def train(env, policy, policy_evaluation, opt):
-    """ Training routine.
-    """
-    log = rlog.getLogger(f"{opt.experiment}.train")
-    log_fmt = (
-        "[{0:6d}/{ep_cnt:5d}] R/ep={R/ep:8.2f}, V/step={V/step:8.2f}"
-        + " | steps/ep={steps/ep:8.2f}, fps={learning_fps:8.2f}."
-    )
-    log.reset()
-
-    ep_cnt, step_cnt = 1, 1
-    while step_cnt <= opt.training_steps:
-
-        for state, pi, reward, state_, done in Episode(env, policy):
-            policy_evaluation.learn(state, pi, reward, state_, done)
-            log.put(
-                reward=reward,
-                value=pi.value.data.squeeze().item(),
-                done=done,
-                frame_no=1,
-                step_no=1,
-            )
-            step_cnt += 1
-
-        if ep_cnt % opt.log_interval == 0:
-            summary = log.summarize()
-            log.info(log_fmt.format(step_cnt, **summary))
-            log.trace(step=step_cnt, **summary)
-            log.reset()
-            gc.collect()
-            tune.track.log(episodic_return=summary["R/ep"])
-        ep_cnt += 1
-    env.close()
-
-
 class TorchWrapper(gym.ObservationWrapper):
     """ Applies a couple of transformations depending on the mode.
         Receives numpy arrays and returns torch tensors.
@@ -225,6 +306,20 @@ class TorchWrapper(gym.ObservationWrapper):
 
     def observation(self, obs):
         return torch.from_numpy(obs).float().unsqueeze(0).to(self._device)
+
+
+class ActionWrapper(gym.ActionWrapper):
+    """ Torch to Gym-compatible actions.
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+        self._action_type = "Z" if hasattr(env, "n") else "R"
+
+    def action(self, action):
+        if self._action_type == "Z":
+            return action.cpu().item()
+        return action.squeeze().cpu().numpy()
 
 
 AGENTS = {
@@ -250,8 +345,9 @@ def build_agent(opt, env):
         raise ValueError(f"{opt.algo} is not a known option.")
 
     estimator = AGENTS[opt.algo]["estimator"](
-        env.observation_space.shape[0], env.action_space.n, **kw
+        env.observation_space.shape[0], env.action_space, **kw
     ).to(DEVICE)
+
     policy = AGENTS[opt.algo]["policy_improvement"](estimator)
     policy_evaluation = AGENTS[opt.algo]["policy_evaluation"](
         policy,
@@ -274,16 +370,23 @@ def run(opt):
     torch.manual_seed(opt.seed)
 
     # configure env
-    env = TorchWrapper(gym.make(opt.env_name))
+    env = ActionWrapper(TorchWrapper(gym.make(opt.env_name)))
     env.seed(opt.seed)
 
-    rlog.info(f"\n{U.config_to_string(opt)}")
-
     # build the agent
-    policy, policy_evaluation = build_agent(opt, env)
+    policy_improvement, policy_evaluation = build_agent(opt, env)
+
+    # log
+    rlog.info(f"\n{U.config_to_string(opt)}")
+    rlog.info(policy_improvement)
 
     # train
-    train(env, policy, policy_evaluation, opt)
+    try:
+        train(env, policy_improvement, policy_evaluation, opt)
+    except Exception as err:
+        rlog.error(clr(err, "red", attrs=["bold"]))
+        raise err
+
 
 
 def main():

@@ -1,0 +1,15 @@
+experiment: a2c-ab
+algo: a2c
+env_name: Acrobot-v1
+base_seed: 42
+
+training_steps: 10000
+gamma: 0.99
+nsteps: 30
+beta_entropy: 0.001
+lr: 0.001
+hidden_size: 64
+
+log_frequency: 2  # episodes
+val_frequency: 500 # steps
+val_episodes: 100

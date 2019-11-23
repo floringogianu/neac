@@ -16,6 +16,7 @@ from src.io_utils import (
     read_config,
     flatten_dict,
     expand_dict,
+    config_to_string,
 )
 
 
@@ -36,7 +37,6 @@ def trial2string(trial):
 
 
 def get_search_space(search_cfg):
-
     search_space = {}
     if "hyperopt" in search_cfg:
         search_cfg = flatten_dict(search_cfg["hyperopt"])
@@ -59,18 +59,17 @@ def get_search_space(search_cfg):
 
 
 def main(cmdl):
-    max_workers = 32
-    trials = 512  ## whoa!
-
+    print(config_to_string(cmdl))
     base_cfg = namespace_to_dict(read_config(Path(cmdl.cfg) / "default.yaml"))
     search_cfg = namespace_to_dict(read_config(Path(cmdl.cfg) / "search.yaml"))
 
     # the search space
     search_space = get_search_space(search_cfg)
 
-    search_name = "{timestep}_tune_{algo_name}".format(
+    search_name = "{timestep}_tune_{experiment_name}{dev}".format(
         timestep="{:%Y%b%d-%H%M%S}".format(datetime.now()),
-        algo_name=base_cfg["algo"],
+        experiment_name=base_cfg["experiment"],
+        dev="_dev" if cmdl.dev else "",
     )
 
     # search algorithm
@@ -78,15 +77,16 @@ def main(cmdl):
         search_space,
         metric="episodic_return",
         mode="max",
-        max_concurrent=max_workers,
+        max_concurrent=cmdl.workers,
     )
 
     # early stopping
     scheduler = ASHAScheduler(
+        time_attr="train_step",
         metric="episodic_return",
         mode="max",
-        max_t=200,  # max length of the experiment
-        grace_period=50,  # stops after 20 logged steps
+        max_t=base_cfg["training_steps"],  # max length of the experiment
+        grace_period=cmdl.grace_steps,  # stops after 20 logged steps
         brackets=3,  # don't know what this does
     )
 
@@ -97,7 +97,7 @@ def main(cmdl):
         search_alg=hyperopt_search,
         scheduler=scheduler,
         local_dir="./results",
-        num_samples=trials,
+        num_samples=cmdl.trials,
         trial_name_creator=trial2string,
     )
 
@@ -114,4 +114,22 @@ if __name__ == "__main__":
     PARSER.add_argument(
         "--cfg", "-c", type=str, help="Path to the configuration folder."
     )
+    PARSER.add_argument(
+        "--trials", "-t", default=16, type=int, help="Number of total trials."
+    )
+    PARSER.add_argument(
+        "--workers",
+        "-w",
+        default=8,
+        type=int,
+        help="Number of available processes.",
+    )
+    PARSER.add_argument(
+        "--grace-steps",
+        "-g",
+        default=1_000,
+        type=int,
+        help="Grace period in env steps.",
+    )
+    PARSER.add_argument("--dev", "-d", action="store_true", help="Dev mode.")
     main(PARSER.parse_args())
