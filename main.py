@@ -201,17 +201,23 @@ class DNDPolicyEvaluation(PolicyEvaluation):
     """ Evaluates and updates the policy.
     """
 
-    def __init__(self, policy, gamma, nsteps, optimizer, beta=0.01, dnd_lr=0.1):
+    def __init__(
+        self,
+        policy,
+        gamma,
+        nsteps,
+        optimizer,
+        beta=0.01,
+        dnd_lr=0.1,
+        use_critic_grads=True,
+    ):
         super().__init__(policy, gamma, nsteps, optimizer, beta=beta)
         self._dnd_lr = dnd_lr
         self._update_rule = lambda old, new: old + dnd_lr * (new - old)
+        self._use_critic_grads = use_critic_grads
 
     def _update_policy(self, done, state_):
         returns = self._compute_returns(done, state_).to(DEVICE)
-
-        # update DND
-        for i, pi in enumerate(self._policies):
-            self._policy.write(pi.h, returns.data[i], self._update_rule)
 
         # update policy and embedding network
         values = torch.cat([p.value for p in self._policies])
@@ -221,10 +227,18 @@ class DNDPolicyEvaluation(PolicyEvaluation):
 
         policy_loss = (-log_pi * advantage.detach()).sum()
         critic_loss = F.smooth_l1_loss(values, returns, reduction="sum")
+        critic_loss.data.fill_(0)
 
         self._optimizer.zero_grad()
-        (policy_loss + critic_loss - self._beta * entropy.mean()).backward()
+        loss = policy_loss + self._beta * entropy.mean()
+        if self._use_critic_grads:
+            loss += critic_loss
+        loss.backward()
         self._optimizer.step()
+
+        # update DND
+        for i, pi in enumerate(self._policies):
+            self._policy.write(pi.h, returns.data[i], self._update_rule)
 
         self._rewards.clear()
         self._policies.clear()
@@ -356,6 +370,7 @@ def build_agent(opt, env):
         optim.Adam(estimator.parameters(), lr=opt.lr, eps=1e-05),
         beta=opt.beta_entropy,
         dnd_lr=opt.dnd.lr if hasattr(opt, "dnd") else None,
+        use_critic_grads=opt.dnd.use_critic_grads if hasattr(opt, "dnd") else True
     )
     return policy, policy_evaluation
 
@@ -386,7 +401,6 @@ def run(opt):
     except Exception as err:
         rlog.error(clr(err, "red", attrs=["bold"]))
         raise err
-
 
 
 def main():
