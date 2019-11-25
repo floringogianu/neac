@@ -1,6 +1,6 @@
-experiment: a2c
+experiment: a2c_llc
 algo: a2c
-env_name: LunarLander-v2
+env_name: LunarLanderContinuous-v2
 base_seed: 42
 
 training_steps: 1000000
