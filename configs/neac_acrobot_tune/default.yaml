@@ -1,4 +1,4 @@
-experiment: neac_ab
+experiment: neac_acrobot
 algo: neac
 env_name: Acrobot-v1
 base_seed: 42

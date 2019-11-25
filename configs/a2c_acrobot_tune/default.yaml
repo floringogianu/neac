@@ -1,4 +1,4 @@
-experiment: a2c_ab
+experiment: a2c_acrobot
 algo: a2c
 env_name: Acrobot-v1
 base_seed: 42
