@@ -8,3 +8,4 @@ hyperopt:
     size: ["choice", [1000, 1500, 2000, 3000, 5000, 10000]]
     lr: ["uniform", [0.01, 0.9]] 
     key_size: ["choice", [24, 32, 64]]
+    use_critic_grads: ["choice", [True, False]]
