@@ -1,0 +1,10 @@
+hyperopt:
+  lr: ["uniform", [0.0001, 0.01]]
+  nsteps: ["choice", [10, 20, 30, 40, 50, 60, 70]]
+  beta_entropy: ["uniform", [0.0001, 0.1]]
+
+  dnd:
+    size: ["choice", [1000, 3000, 5000, 10000, 20000, 30000]]
+    lr: ["uniform", [0.01, 0.7]] 
+    key_size: ["choice", [24, 32, 64]]
+    use_critic_grads: ["choice", [True, False]]

@@ -1,0 +1,20 @@
+experiment: neac_llc
+algo: neac
+env_name: LunarLanderContinuous-v2
+base_seed: 42
+
+dnd:
+  size: 6_000
+  key_size: 64
+  lr: 0.2
+  use_critic_grads: True
+
+training_steps: 1000000
+gamma: 0.99
+nsteps: 50
+beta_entropy: 0.001
+lr: 0.005
+
+log_frequency: 100  # episodes
+val_frequency: 25000 # steps
+val_episodes: 100
