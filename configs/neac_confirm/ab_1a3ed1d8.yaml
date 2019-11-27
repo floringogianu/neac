@@ -13,6 +13,7 @@ dnd:
   size: 1500
   key_size: 64
   lr: 0.31
+  use_critic_grads: True
 
 log_frequency: 2  # episodes
 val_frequency: 500 # steps
