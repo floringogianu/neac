@@ -33,9 +33,8 @@ def trial2string(trial):
     s = f"{trial.trial_id}"
     for k, v in trial.config.items():
         if isinstance(v, float):
-            s += f"_{k}_{str(v)[:5]}_"
-        else:
-            s += f"_{k}_{v}_"
+            v = f"{v:.4f}"[:6]
+        s += f"_{k}_{v}_"
     return s
 
 
