@@ -32,7 +32,10 @@ def tune_trial(search_cfg, base_cfg=None):
 def trial2string(trial):
     s = f"{trial.trial_id}"
     for k, v in trial.config.items():
-        s += f"_{k}_{v}_"
+        if isinstance(v, float):
+            s += f"_{k}_{str(v)[:5]}_"
+        else:
+            s += f"_{k}_{v}_"
     return s
 
 
