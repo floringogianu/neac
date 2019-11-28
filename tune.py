@@ -37,10 +37,11 @@ def trial2string(trial):
 
 
 def get_search_space(search_cfg):
+    good_inits = None
     search_space = {}
     if "hyperopt" in search_cfg:
-        search_cfg = flatten_dict(search_cfg["hyperopt"])
-        for k, v in search_cfg.items():
+        flat_cfg = flatten_dict(search_cfg["hyperopt"])
+        for k, v in flat_cfg.items():
             if v[0] == "uniform":
                 args = [k, *v[1]]
             elif v[0] == "choice":
@@ -52,19 +53,22 @@ def get_search_space(search_cfg):
             except Exception as err:
                 print(k, v, args)
                 raise err
-
     else:
         raise ValueError("Unknown search space.", search_cfg)
-    return search_space
+    if "good_inits" in search_cfg:
+        good_inits = [flatten_dict(d) for d in search_cfg["good_inits"]]
+    return good_inits, search_space
 
 
 def main(cmdl):
-    print(config_to_string(cmdl))
     base_cfg = namespace_to_dict(read_config(Path(cmdl.cfg) / "default.yaml"))
     search_cfg = namespace_to_dict(read_config(Path(cmdl.cfg) / "search.yaml"))
 
+    print(config_to_string(cmdl))
+    print(config_to_string(dict_to_namespace(search_cfg)))
+
     # the search space
-    search_space = get_search_space(search_cfg)
+    good_init, search_space = get_search_space(search_cfg)
 
     search_name = "{timestep}_tune_{experiment_name}{dev}".format(
         timestep="{:%Y%b%d-%H%M%S}".format(datetime.now()),
@@ -78,6 +82,7 @@ def main(cmdl):
         metric="episodic_return",
         mode="max",
         max_concurrent=cmdl.workers,
+        points_to_evaluate=good_init,
     )
 
     # early stopping

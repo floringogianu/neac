@@ -104,7 +104,7 @@ def namespace_to_dict(namespace: Namespace) -> dict:
 
 
 def flatten_dict(dct: dict, prev_key: str = None) -> dict:
-    """Recursive flattening a Namespace"""
+    """Recursive flattening a dict"""
     flat_dct: dict = {}
     for key, value in dct.items():
         new_key = f"{prev_key}.{key}" if prev_key is not None else key
