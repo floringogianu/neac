@@ -112,7 +112,7 @@ def main(cmdl):
     dfs = analysis.trial_dataframes
     for i, (key, df) in enumerate(dfs.items()):
         print("saving: ", key)
-        df.to_pickle(f"./results/{search_name}/trial_{i}_df.pkl")
+        df.to_pickle(f"{key}/trial_df.pkl")
 
 
 if __name__ == "__main__":
