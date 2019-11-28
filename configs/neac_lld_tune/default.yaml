@@ -9,9 +9,9 @@ dnd:
   lr: 0.2
   use_critic_grads: True
 
-training_steps: 1000000
+training_steps: 2000000
 gamma: 0.99
-nsteps: 50
+nsteps: 60
 beta_entropy: 0.001
 lr: 0.005
 
