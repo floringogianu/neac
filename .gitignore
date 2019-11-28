@@ -3,6 +3,10 @@ results/
 misc/
 .liftoff_cfg.yaml
 
+# experiments branch only
+docs/
+notebooks/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
