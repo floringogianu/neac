@@ -34,7 +34,10 @@ I only managed to start `a2c_confirm` with the four experiments above.
 ## Nov 27, confirm neAC too 
 ---
 
-Configure and launch neAC experiments too.
+- [x] Configure and launch **neAC** experiments too.
+- [ ] Explore and extend last night's **A2C** experiments.
+- [ ] Rerun `ray.tune` on Acrobot.
+- [ ] Decide on what's next.
 
 Initial results look bad on Acrobot, these hyperparameters are not robust
 troughout the training. I am adding two more configs which appear to be
@@ -62,3 +65,13 @@ I am adding some more:
 | LunarLander-C | `b5`,`6e`,`69`,`9e7953d8` | `4dc127e8`, `97306f06` |
 
 
+It's becoming clear that `ray.tune` is simply selecting some lucky seeds. All four configurations below should have solved `LunarLander`.
+
+![a2c confirm on the two envs above](./img/27_nov_a2c_confirm_four.png)
+
+### Summary
+
+- Check the issue of low performance configurations found by `ray.tune` on the
+discrete case too.
+- Implement and look what happens with an optimal Value function.
+- Look at gradients.
