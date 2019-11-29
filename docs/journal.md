@@ -35,7 +35,7 @@ I only managed to start `a2c_confirm` with the four experiments above.
 ---
 
 - [x] Configure and launch **neAC** experiments too.
-- [ ] Explore and extend last night's **A2C** experiments.
+- [x] Explore and extend last night's **A2C** experiments.
 - [ ] Rerun `ray.tune` on Acrobot.
 - [ ] Decide on what's next.
 
@@ -75,3 +75,97 @@ It's becoming clear that `ray.tune` is simply selecting some lucky seeds. All fo
 discrete case too.
 - Implement and look what happens with an optimal Value function.
 - Look at gradients.
+
+
+## Nov 28, implement good inits
+---
+
+- [#c9c5c34](https://github.com/floringogianu/neac/commit/c9c5c34f6968cdc7270b78c0c8e1f43c41452601)
+adds support for good initializations to start the tuning process from. For
+example the `search.yaml` file can now look like:
+```yaml
+hyperopt:
+  lr: ["uniform", [0.0001, 0.005]]
+  nsteps: ["choice", [20, 30, 40, 50, 60]]
+  gamma: ["uniform", [0.91, 0.99]]
+  beta_entropy: ["uniform", [0.001, 0.1]]
+
+  dnd:
+    size: ["choice", [1000, 3000, 5000, 10000, 20000, 30000]]
+    lr: ["uniform", [0.01, 0.7]] 
+    key_size: ["choice", [24, 32, 64]]
+    use_critic_grads: ["choice", [True, False]]
+
+good_inits:
+  - lr: 0.0007
+    gamma: 0.99
+    nsteps: 3
+    beta_entropy: 0.001
+    dnd:
+      size: 3
+      lr: 0.2
+      key_size: 1
+      use_critic_grads: 0
+
+  - lr: 0.001
+    gamma: 0.99
+    nsteps: 3
+    beta_entropy: 0.001
+    dnd:
+      size: 3
+      lr: 0.2
+      key_size: 1
+      use_critic_grads: 1
+```
+
+
+## Nov 29, implement good inits
+---
+
+- also added support for anealing the critic's tabular learning rate (`dnd.lr`)
+
+With these two improvements I ran `ray.tune` once again on the
+**LunarLander-v2** (discrete actions) env. I find this to be one of the
+easiest envs in the suite. Unfourtunately things are not looking
+any better for neAC. Although hard to discern details, I'm puting some of the
+results just to get some idea of the general trend.
+
+- 256 trials for A2C
+- 173 trials for neAC.
+- game is considered solved at 200.
+- each point is the mean return on 100 episodes.
+
+These are heavily smoothed curves. Some of the experiments finish faster
+because they are killed by the hyperparameter search algo.
+
+### Mean Episodic Return
+
+#### A2C
+A2C solve the env fairly fast.
+![a2c returns](./img/a2c_return.png)
+
+#### neAC
+neAC shows quite a bit of promise in the first 15 evaluations (375,000 steps). However it only reaches ~150 points consistently, and only in the first part of the training run.
+![a2c returns](./img/neac_return.png)
+
+
+### Mean Value Estimates
+
+#### A2C
+The value estimates seem all over the place.
+![a2c returns](./img/a2c_value.png)
+
+#### neAC
+By contrast neAC's value estimate are much more controlled.
+
+<span style="color: red">However they don't go over 0, I need to figure out why is this happening.</span>
+![a2c returns](./img/neac_value.png)
+
+
+### To do:
+
+- Take the top configurations found here and run on 10 seeds, see if they are robust.
+- **Investigate neAC's V(s) estimate, something's strange there.**
+- Start logging the critic loss.
+- Plot a histogram of gradients?
+- Train with an optimum critic from the begining, see what happens.
