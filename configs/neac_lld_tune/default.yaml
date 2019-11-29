@@ -8,6 +8,7 @@ training_steps: 2000000
 dnd:
   size: 6_000
   key_size: 64
+  knn_no: 50
   lr: 0.2
   lr_schedule:
     end: 0.01

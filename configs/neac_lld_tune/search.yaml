@@ -8,6 +8,7 @@ hyperopt:
     size: ["choice", [1000, 3000, 5000, 10000, 20000, 30000]]
     lr: ["uniform", [0.01, 0.7]] 
     key_size: ["choice", [24, 32, 64]]
+    knn_no: ["choice", [8, 16, 32, 50]]
     use_critic_grads: ["choice", [True, False]]
 
 good_inits:
@@ -19,6 +20,7 @@ good_inits:
       size: 3
       lr: 0.2
       key_size: 1
+      knn_no: 1
       use_critic_grads: 0
 
   - lr: 0.001
@@ -29,6 +31,7 @@ good_inits:
       size: 3
       lr: 0.2
       key_size: 1
+      knn_no: 1
       use_critic_grads: 1
 
   - lr: 0.0009
@@ -39,6 +42,7 @@ good_inits:
       size: 3
       lr: 0.2
       key_size: 1
+      knn_no: 1
       use_critic_grads: 0
 
   - lr: 0.0004
@@ -49,6 +53,7 @@ good_inits:
       size: 3
       lr: 0.2
       key_size: 1
+      knn_no: 1
       use_critic_grads: 1
 
   - lr: 0.0007
@@ -59,6 +64,7 @@ good_inits:
       size: 4
       lr: 0.5
       key_size: 1
+      knn_no: 1
       use_critic_grads: 0
 
   - lr: 0.001
@@ -69,6 +75,7 @@ good_inits:
       size: 4
       lr: 0.5
       key_size: 1
+      knn_no: 1
       use_critic_grads: 1
 
   - lr: 0.0009
@@ -79,6 +86,7 @@ good_inits:
       size: 4
       lr: 0.5
       key_size: 1
+      knn_no: 1
       use_critic_grads: 0
 
   - lr: 0.0004
@@ -89,4 +97,5 @@ good_inits:
       size: 4
       lr: 0.5
       key_size: 1
+      knn_no: 1
       use_critic_grads: 1
