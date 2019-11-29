@@ -6,7 +6,12 @@ base_seed: 42
 dnd:
   size: 6_000
   key_size: 64
-  lr: 0.2
+  lr: 0.7
+  lr_schedule:
+    end: 0.01
+    steps: 1_000
+  use_critic_grads: True
+
 
 training_steps: 2000000
 gamma: 0.99
