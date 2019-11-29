@@ -17,12 +17,13 @@ from src.io_utils import (
     flatten_dict,
     expand_dict,
     config_to_string,
+    recursive_update
 )
 
 
 def tune_trial(search_cfg, base_cfg=None):
     print("-->", search_cfg)
-    base_cfg.update(expand_dict(search_cfg))
+    base_cfg = recursive_update(base_cfg, expand_dict(search_cfg))
     cfg = dict_to_namespace(base_cfg)
     cfg.out_dir = tune.track.trial_dir()
     cfg.run_id = torch.randint(1000, (1,)).item()
