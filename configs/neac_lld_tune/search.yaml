@@ -50,3 +50,43 @@ good_inits:
       lr: 0.2
       key_size: 1
       use_critic_grads: 1
+
+  - lr: 0.0007
+    gamma: 0.99
+    nsteps: 3
+    beta_entropy: 0.001
+    dnd:
+      size: 4
+      lr: 0.5
+      key_size: 1
+      use_critic_grads: 0
+
+  - lr: 0.001
+    gamma: 0.99
+    nsteps: 3
+    beta_entropy: 0.001
+    dnd:
+      size: 4
+      lr: 0.5
+      key_size: 1
+      use_critic_grads: 1
+
+  - lr: 0.0009
+    gamma: 0.93
+    nsteps: 4
+    beta_entropy: 0.02
+    dnd:
+      size: 4
+      lr: 0.5
+      key_size: 1
+      use_critic_grads: 0
+
+  - lr: 0.0004
+    gamma: 0.91
+    nsteps: 4
+    beta_entropy: 0.01
+    dnd:
+      size: 4
+      lr: 0.5
+      key_size: 1
+      use_critic_grads: 1
