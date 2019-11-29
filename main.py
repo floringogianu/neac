@@ -3,6 +3,7 @@
 from collections import namedtuple
 from copy import deepcopy
 import gc
+import itertools
 
 import gym
 import torch
@@ -208,12 +209,11 @@ class DNDPolicyEvaluation(PolicyEvaluation):
         nsteps,
         optimizer,
         beta=0.01,
-        dnd_lr=0.1,
+        dnd_update=None,
         use_critic_grads=True,
     ):
         super().__init__(policy, gamma, nsteps, optimizer, beta=beta)
-        self._dnd_lr = dnd_lr
-        self._update_rule = lambda old, new: old + dnd_lr * (new - old)
+        self._update_rule = dnd_update
         self._use_critic_grads = use_critic_grads
 
     def _update_policy(self, done, state_):
@@ -350,6 +350,30 @@ AGENTS = {
 }
 
 
+def get_schedule(start, end, steps):
+    """ Degrade from the `start` value to the `end` within the number of
+    `steps` and then continue returning the `end` value indefinetly.
+    """
+    incr = (start - end) / steps
+
+    def frange(start, end, step):
+        x = start
+        while x > end:
+            yield x
+            x -= step
+
+    return itertools.chain(frange(start, end, incr), itertools.repeat(end))
+
+
+def get_dnd_update(dnd):
+    """ `dnd` received here is the global `opt.dnd`."""
+    if not hasattr(dnd, "lr_schedule"):
+        return lambda old, new: old + dnd.lr * (new - old)
+    start, end, steps = dnd.lr, dnd.lr_schedule.end, dnd.lr_schedule.steps
+    lr_schedule = get_schedule(start, end, steps)
+    return lambda old, new: old + next(lr_schedule) * (new - old)
+
+
 def build_agent(opt, env):
     if opt.algo == "a2c":
         kw = {"hidden_size": opt.hidden_size}
@@ -369,8 +393,10 @@ def build_agent(opt, env):
         opt.nsteps,
         optim.Adam(estimator.parameters(), lr=opt.lr, eps=1e-05),
         beta=opt.beta_entropy,
-        dnd_lr=opt.dnd.lr if hasattr(opt, "dnd") else None,
-        use_critic_grads=opt.dnd.use_critic_grads if hasattr(opt, "dnd") else True
+        dnd_update=get_dnd_update(opt.dnd) if hasattr(opt, "dnd") else None,
+        use_critic_grads=opt.dnd.use_critic_grads
+        if hasattr(opt, "dnd")
+        else True,
     )
     return policy, policy_evaluation
 

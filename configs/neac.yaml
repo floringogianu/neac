@@ -7,6 +7,9 @@ dnd:
   size: 3_000
   key_size: 32
   lr: 0.5
+  lr_schedule:
+    end: 0.01
+    steps: 1_000
   use_critic_grads: True
 
 training_steps: 2000000
