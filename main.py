@@ -292,11 +292,16 @@ class ActorCriticEstimator(nn.Module):
 
 
 class DNDEstimator(nn.Module):
-    def __init__(self, state_sz, action_space, dnd_size=20_000, hidden_size=64):
+    def __init__(
+        self, state_sz, action_space, dnd_size=20_000, hidden_size=64, knn_no=50
+    ):
         super().__init__()
         self.affine1 = nn.Linear(state_sz, hidden_size)
         self.policy = get_policy_family(action_space, hidden_size)
-        self.value = DND(hidden_size, torch.device("cpu"), max_size=dnd_size)
+        self.value = DND(
+            hidden_size, torch.device("cpu"), max_size=dnd_size, knn_no=knn_no
+        )
+        print(self.value)
 
     def forward(self, x):
         h = F.relu(self.affine1(x))
@@ -378,7 +383,11 @@ def build_agent(opt, env):
     if opt.algo == "a2c":
         kw = {"hidden_size": opt.hidden_size}
     elif opt.algo == "neac":
-        kw = {"hidden_size": opt.dnd.key_size, "dnd_size": opt.dnd.size}
+        kw = {
+            "hidden_size": opt.dnd.key_size,
+            "dnd_size": opt.dnd.size,
+            "knn_no": opt.dnd.knn_no,
+        }
     else:
         raise ValueError(f"{opt.algo} is not a known option.")
 

@@ -120,6 +120,7 @@ class DND:
 
     def __init__(self, key_size, device, knn_no=50, max_size=50000):
         self._max_size = max_size
+        self._key_size = key_size
         self._knn_no = knn_no
         self._dict = TensorDict(max_size, key_size, device=device)
         self._kd_tree = None  # lazy init
@@ -208,3 +209,8 @@ class DND:
 
     def __len__(self):
         return len(self._dict)
+
+    def __str__(self):
+        return "DND(size={size}, key_size={key_size}, K={knn_no})".format(
+            size=self._max_size, knn_no=self._knn_no, key_size=self._key_size
+        )
