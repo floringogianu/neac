@@ -169,3 +169,8 @@ By contrast neAC's value estimate are much more controlled.
 - Start logging the critic loss.
 - Plot a histogram of gradients?
 - Train with an optimum critic from the begining, see what happens.
+
+
+#### Late updates
+
+After discussing about the issue above with [@tudor-berariu](https://github.com/tudor-berariu) I decided to include the number of K-Nearest-Neighbours in the config search. Tudor's intuition is that KNN can't extrapolate outside it's state space so I wanted to see if smaller K could drive the values up. Also need to look at the weghts.
