@@ -115,7 +115,18 @@ def flatten_dict(dct: dict, prev_key: str = None) -> dict:
     return flat_dct
 
 
+def recursive_update(d: dict, u: dict) -> dict:
+    "Recursively update `d` with stuff in `u`."
+    for k, v in u.items():
+        if isinstance(v, dict):
+            d[k] = recursive_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
+
 def _expand_from_keys(keys: list, value: object) -> dict:
+    """ Expand [a, b c] to {a: {b: {c: value}}} """
     dct = d = {}
     while keys:
         key = keys.pop(0)
@@ -125,15 +136,35 @@ def _expand_from_keys(keys: list, value: object) -> dict:
 
 
 def expand_dict(flat_dict: dict) -> dict:
+    """ Expand {a: va, b.c: vbc, b.d: vbd} to {a: va, b: {c: vbc, d: vbd}}.
+        If not clear from above we want:
+        {'lr':              0.0011,
+         'gamma':           0.95,
+         'dnd.size':        2000,
+         'dnd.lr':          0.77,
+         'dnd.sched.end':   0.0,
+         'dnd.sched.steps': 1000
+        }
+        to this:
+        {'lr': 0.0011,
+         'gamma': 0.95,
+         'dnd': {'size': 2000,
+                 'lr': 0.77, 
+                 'sched': {'end': 0.0, 
+                           'steps': 1000
+        }}}
+    """
     exp_dict = {}
     for key, value in flat_dict.items():
         if "." in key:
             keys = key.split(".")
             key_ = keys.pop(0)
-            if key_ in exp_dict:
-                exp_dict[key_].update(_expand_from_keys(keys, value))
-            else:
+            if key_ not in exp_dict:
                 exp_dict[key_] = _expand_from_keys(keys, value)
+            else:
+                exp_dict[key_] = recursive_update(
+                    exp_dict[key_], _expand_from_keys(keys, value)
+                )
         else:
             exp_dict[key] = value
     return exp_dict
