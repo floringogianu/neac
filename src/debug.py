@@ -2,6 +2,8 @@
 """
 import gc
 from collections import defaultdict, OrderedDict
+import torch
+import numpy as np
 
 
 def count_tensors(numpy=False):

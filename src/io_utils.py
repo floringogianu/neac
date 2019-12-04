@@ -4,9 +4,10 @@ import os
 from argparse import Namespace
 from datetime import datetime
 
-import rlog
 import yaml
 from termcolor import colored as clr
+
+import rlog
 
 
 def configure_logger(opt):
@@ -149,8 +150,8 @@ def expand_dict(flat_dict: dict) -> dict:
         {'lr': 0.0011,
          'gamma': 0.95,
          'dnd': {'size': 2000,
-                 'lr': 0.77, 
-                 'sched': {'end': 0.0, 
+                 'lr': 0.77,
+                 'sched': {'end': 0.0,
                            'steps': 1000
         }}}
     """
