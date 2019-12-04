@@ -54,7 +54,8 @@ confidence=
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=print-statement,
+disable=C0330,
+        print-statement,
         parameter-unpacking,
         unpacking-in-except,
         old-raise-syntax,
@@ -251,7 +252,8 @@ function-naming-style=snake_case
 #function-rgx=
 
 # Good variable names which should always be accepted, separated by a comma
-good-names=i,
+good-names=h,
+           i,
            j,
            k,
            n,
@@ -264,10 +266,11 @@ good-names=i,
            x,
            y,
            df,
-           ys,
-           ex,
            mu,
            Run,
+           Rs,
+           ys,
+           hs,
            _,
            cb,
            lr,

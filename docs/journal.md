@@ -31,6 +31,7 @@ Tune results folders:
 I only managed to start `a2c_confirm` with the four experiments above.
 
 
+
 ## Nov 27, confirm neAC too 
 ---
 
@@ -65,7 +66,8 @@ I am adding some more:
 | LunarLander-C | `b5`,`6e`,`69`,`9e7953d8` | `4dc127e8`, `97306f06` |
 
 
-It's becoming clear that `ray.tune` is simply selecting some lucky seeds. All four configurations below should have solved `LunarLander`.
+It's becoming clear that `ray.tune` is simply selecting some lucky seeds. All
+four configurations below should have solved `LunarLander`.
 
 ![a2c confirm on the two envs above](./img/27_nov_a2c_confirm_four.png)
 
@@ -75,6 +77,7 @@ It's becoming clear that `ray.tune` is simply selecting some lucky seeds. All fo
 discrete case too.
 - Implement and look what happens with an optimal Value function.
 - Look at gradients.
+
 
 
 ## Nov 28, implement good inits
@@ -119,16 +122,17 @@ good_inits:
 ```
 
 
-## Nov 29, implement good inits
+
+## Nov 29, implement learning rate anealing
 ---
 
 - also added support for anealing the critic's tabular learning rate (`dnd.lr`)
 
 With these two improvements I ran `ray.tune` once again on the
 **LunarLander-v2** (discrete actions) env. I find this to be one of the
-easiest envs in the suite. Unfourtunately things are not looking
-any better for neAC. Although hard to discern details, I'm puting some of the
-results just to get some idea of the general trend.
+easiest envs in the suite. Unfourtunately things are not looking any better
+for neAC. Although hard to discern details, I'm puting some of the results
+just to get some idea of the general trend.
 
 - 256 trials for A2C
 - 173 trials for neAC.
@@ -145,9 +149,11 @@ A2C solve the env fairly fast.
 ![a2c returns](./img/a2c_return.png)
 
 #### neAC
-neAC shows quite a bit of promise in the first 15 evaluations (375,000 steps). However it only reaches ~150 points consistently, and only in the first part of the training run.
-![a2c returns](./img/neac_return.png)
+neAC shows quite a bit of promise in the first 15 evaluations (375,000
+steps). However it only reaches ~150 points consistently, and only in the
+first part of the training run.
 
+![a2c returns](./img/neac_return.png)
 
 ### Mean Value Estimates
 
@@ -158,9 +164,8 @@ The value estimates seem all over the place.
 #### neAC
 By contrast neAC's value estimate are much more controlled.
 
-<span style="color: red">However they don't go over 0, I need to figure out why is this happening.</span>
+:warning: However they don't go over 0, I need to figure out why is this happening.
 ![a2c returns](./img/neac_value.png)
-
 
 ### To do:
 
@@ -169,3 +174,33 @@ By contrast neAC's value estimate are much more controlled.
 - Start logging the critic loss.
 - Plot a histogram of gradients?
 - Train with an optimum critic from the begining, see what happens.
+
+#### Late updates
+
+After discussing about the issue above with
+[@tudor-berariu](https://github.com/tudor-berariu) I decided to include the
+number of K-Nearest-Neighbours in the config search. Tudor's intuition is
+that KNN can't extrapolate outside it's state space so I wanted to see if
+smaller K could drive the values up. Also need to look at the weghts.
+
+
+
+## Nov 30, fewer neighbours pays off
+---
+
+For the first time neAC consistently achieves ~200 points. There's still
+quite some variance left and it doesn't look more sample efficient than the
+baseline at this point.
+
+![a2c returns](./img/30_nov_tune_knn_return.svg)
+
+The value estimates though are still quite low.
+![a2c returns](./img/30_nov_tune_knn_value_estimate.svg)
+
+
+
+## Dec 2. Check robustness of the new found configs
+
+- [ ] Run the best configs on multiple seeds.
+- [ ] Implement and compare with _optimum_ critic.
+- [ ] Find a way to look into the value under-estimation problem of the DND.
