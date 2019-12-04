@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
-from hyperopt import hp
+from hyperopt import hp  # pylint: disable=unused-import
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.suggest.hyperopt import HyperOptSearch
