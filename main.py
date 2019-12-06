@@ -98,6 +98,17 @@ def validate(policy, opt, crt_step):
         )
     except AttributeError as err:
         log.debug("Probably not in a ray experiment\n: %s", err)
+
+    if hasattr(opt, "save_agent") and opt.save_agent:
+        torch.save(
+            {
+                "step": crt_step,
+                "policy": policy.estimator_state(),
+                "R/ep": summary["R/ep"],
+            },
+            f"{opt.out_dir}/policy_step_{crt_step:07d}.pth",
+        )
+
     gc.collect()
 
 
@@ -113,6 +124,12 @@ class PolicyImprovement:
         """
         pi, value = self.__estimator(state)
         return Policy(pi.sample(), pi, value)
+
+    def estimator_state(self):
+        return self.__estimator.state_dict()
+
+    def set_estimator_state(self, state_dict):
+        return self.__estimator.set_state_dict(state_dict)
 
     def __call__(self, state):
         return self.act(state)
@@ -409,7 +426,7 @@ def get_dnd_update(dnd):
     return lambda old, new: old + next(lr_schedule) * (new - old)
 
 
-def build_agent(opt, env):
+def build_agent(opt, env, estimator=None):
     """ Return policy improvement and evaluation objects based on the
     configuration.
     """
@@ -424,16 +441,21 @@ def build_agent(opt, env):
     else:
         raise ValueError(f"{opt.algo} is not a known option.")
 
-    estimator = AGENTS[opt.algo]["estimator"](
-        env.observation_space.shape[0], env.action_space, **kwargs
-    ).to(DEVICE)
+    if estimator is None:
+        estimator = AGENTS[opt.algo]["estimator"](
+            env.observation_space.shape[0], env.action_space, **kwargs
+        ).to(DEVICE)
 
     policy = AGENTS[opt.algo]["policy_improvement"](estimator)
     policy_evaluation = AGENTS[opt.algo]["policy_evaluation"](
         policy,
         opt.gamma,
         opt.nsteps,
-        optim.Adam(estimator.parameters(), lr=opt.lr, eps=1e-05),
+        optim.Adam(
+            filter(lambda p: p.requires_grad, estimator.parameters()),
+            lr=opt.lr,
+            eps=1e-05,
+        ),
         beta=opt.beta_entropy,
         dnd_update=get_dnd_update(opt.dnd) if hasattr(opt, "dnd") else None,
         use_critic_grads=opt.dnd.use_critic_grads
