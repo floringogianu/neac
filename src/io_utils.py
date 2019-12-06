@@ -13,7 +13,7 @@ import rlog
 def configure_logger(opt):
     """ Configures the logger.
     """
-    rlog.init(opt.experiment, path=opt.out_dir)
+    rlog.init(opt.experiment, path=opt.out_dir, tensorboard=True)
     train_log = rlog.getLogger(opt.experiment + ".train")
     train_log.addMetrics(
         [
@@ -34,6 +34,7 @@ def configure_logger(opt):
             rlog.AvgMetric("V/step", metargs=["value", 1]),
             rlog.AvgMetric("steps/ep", metargs=["frame_no", "done"]),
             rlog.FPSMetric("fps", metargs=["frame_no"]),
+            rlog.ValueMetric("Vhist", metargs=["value"], tb_type="histogram")
         ]
     )
 
