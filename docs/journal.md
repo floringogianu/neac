@@ -200,7 +200,54 @@ The value estimates though are still quite low.
 
 
 ## Dec 2. Check robustness of the new found configs
+---
 
 - [ ] Run the best configs on multiple seeds.
 - [ ] Implement and compare with _optimum_ critic.
 - [ ] Find a way to look into the value under-estimation problem of the DND.
+
+
+
+## Dec 5. Regroup
+---
+
+- [ ] Configure robustness check for A2C too.
+- [ ] Implement and compare with _optimum_ critic.
+- [ ] Add histograms to `rlog` ?
+- The robustness check is running on `neAC` and is not looking exactly bad.
+
+:warning: Need to gain more insight into the way the value function should behave.
+
+
+# Dec 9. New results
+---
+
+**I completed most of the empty TODOs from above:**
+
+- [x] Added histograms to `rlog`, didn't properly interpret them yet.
+- [x] Completed the robustness checks for both the baseline and **neAC**
+
+
+The curves below are averages of 10 different seeds for the best two
+configurations found by `ray.tune`. You can see **neAC** is still lagging
+behind on this environment (Lunar Lander with discrete actions). ![a2c
+returns](./img/dec_9_comparison.png)
+
+- [x] Implemented comparison with an optimum critic
+
+So I trained five different seeds on the best configuration I have (orange
+curve). I picked a checkpoint that learned the environment and re-initialized
+its policy layer. Then I retrained it with "perfect" value function $V(s)$
+and feature extraction $\phi(s)$ by either freezing $V(s)$ and $\phi(s)$
+(blue line) or by fine-tuing them (green line).
+
+:warning: I think the take-away message here is that there is little room for
+improvement, at least on this environment.
+
+![a2c returns](./img/dec_9_optimum_critic.png)
+
+## Next steps:
+
+- Repeat these experiments on a more difficul environment, for example
+_Bipedal Walker_ with continuous actions.
+- Find a way to make sure $V(s)$ is actually optimum.
