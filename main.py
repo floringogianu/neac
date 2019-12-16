@@ -380,11 +380,14 @@ class ActionWrapper(gym.ActionWrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self._action_type = "Z" if hasattr(env, "n") else "R"
+        self._action_type = "Z" if hasattr(env.action_space, "n") else "R"
 
     def action(self, action):
         if self._action_type == "Z":
-            return action.cpu().item()
+            if torch.is_tensor(action):
+                return action.cpu().item()
+            else:
+                return action
         return action.squeeze().cpu().numpy()
 
 
