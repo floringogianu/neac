@@ -53,7 +53,7 @@ def train(env, policy, policy_evaluation, opt):
             if step_cnt % opt.val_frequency == 0:
                 validate(policy, opt, step_cnt)
 
-        if ep_cnt % opt.log_frequency == 0:
+        if ep_cnt % opt.log.frequency == 0:
             summary = log.summarize()
             log.info(log_fmt.format(step_cnt, **summary))
             log.trace(step=step_cnt, **summary)

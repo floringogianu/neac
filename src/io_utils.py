@@ -15,30 +15,29 @@ def configure_logger(opt):
     """
     rlog.init(opt.experiment, path=opt.out_dir, tensorboard=True)
     train_log = rlog.getLogger(opt.experiment + ".train")
-    train_log.addMetrics(
-        [
-            rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
-            rlog.AvgMetric("V_step", metargs=["value", 1]),
-            rlog.AvgMetric("v_mse", metargs=["v_mse", 1]),
-            rlog.AvgMetric("v_hub", metargs=["v_hub", 1]),
-            rlog.SumMetric("ep_cnt", resetable=False, metargs=["done"]),
-            rlog.AvgMetric("steps_ep", metargs=["step_no", "done"]),
-            rlog.FPSMetric("fps", metargs=["frame_no"]),
-        ]
+    train_log.add_metrics(
+        rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
+        rlog.AvgMetric("V_step", metargs=["value", 1]),
+        rlog.AvgMetric("v_mse_loss", metargs=["v_mse", 1]),
+        rlog.AvgMetric("v_hub_loss", metargs=["v_hub", 1]),
+        rlog.SumMetric("ep_cnt", resetable=False, metargs=["done"]),
+        rlog.AvgMetric("steps_ep", metargs=["step_no", "done"]),
+        rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
     val_log = rlog.getLogger(opt.experiment + ".valid")
-    val_log.addMetrics(
-        [
-            rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
-            rlog.AvgMetric(
-                "RR_ep", resetable=False, eps=0.8, metargs=["reward", "done"]
-            ),
-            rlog.AvgMetric("V_step", metargs=["value", 1]),
-            rlog.AvgMetric("steps_ep", metargs=["frame_no", "done"]),
-            rlog.FPSMetric("fps", metargs=["frame_no"]),
-            rlog.ValueMetric("Vhist", metargs=["value"], tb_type="histogram")
-        ]
+    val_log.add_metrics(
+        rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
+        rlog.AvgMetric(
+            "RR_ep", resetable=False, eps=0.8, metargs=["reward", "done"]
+        ),
+        rlog.AvgMetric("V_step", metargs=["value", 1]),
+        rlog.AvgMetric("steps_ep", metargs=["frame_no", "done"]),
+        rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
+    if hasattr(opt.log, "detailed") and opt.log.detailed:
+        val_log.add_metrics(
+            rlog.ValueMetric("Vhist", metargs=["value"], tb_type="histogram")
+        )
 
 
 def config_to_string(
