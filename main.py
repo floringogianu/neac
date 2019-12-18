@@ -30,8 +30,8 @@ def train(env, policy, policy_evaluation, opt):
     """
     log = rlog.getLogger(f"{opt.experiment}.train")
     log_fmt = (
-        "[{0:6d}/{ep_cnt:5d}] R/ep={R/ep:8.2f}, V/step={V/step:8.2f}"
-        + " | steps/ep={steps/ep:8.2f}, fps={fps:8.2f}."
+        "[{0:6d}/{ep_cnt:5d}] R/ep={R_ep:8.2f}, V/step={V_step:8.2f}"
+        + " | steps/ep={steps_ep:8.2f}, fps={fps:8.2f}."
     )
     log.reset()
 
@@ -53,7 +53,7 @@ def train(env, policy, policy_evaluation, opt):
             if step_cnt % opt.val_frequency == 0:
                 validate(policy, opt, step_cnt)
 
-        if ep_cnt % opt.log_frequency == 0:
+        if ep_cnt % opt.log.frequency == 0:
             summary = log.summarize()
             log.info(log_fmt.format(step_cnt, **summary))
             log.trace(step=step_cnt, **summary)
@@ -69,8 +69,8 @@ def validate(policy, opt, crt_step):
     policy = deepcopy(policy)
     log = rlog.getLogger(f"{opt.experiment}.valid")
     log_fmt = (
-        "@{0:6d}        R/ep={R/ep:8.2f}, RunR/ep={RR/ep:8.2f}"
-        + " | steps/ep={steps/ep:8.2f}, fps={fps:8.2f}."
+        "@{0:6d}        R/ep={R_ep:8.2f}, RunR/ep={RR_ep:8.2f}"
+        + " | steps/ep={steps_ep:8.2f}, fps={fps:8.2f}."
     )
     log.reset()  # so we don't screw up the timer
 
@@ -91,9 +91,9 @@ def validate(policy, opt, crt_step):
     log.reset()
     try:
         tune.track.log(
-            episodic_return=summary["R/ep"],
-            running_return=summary["RR/ep"],
-            value_estimate=summary["V/step"],
+            episodic_return=summary["R_ep"],
+            running_return=summary["RR_ep"],
+            value_estimate=summary["V_step"],
             train_step=crt_step,
         )
     except AttributeError as err:
@@ -104,7 +104,7 @@ def validate(policy, opt, crt_step):
             {
                 "step": crt_step,
                 "policy": policy.estimator_state(),
-                "R/ep": summary["R/ep"],
+                "R/ep": summary["R_ep"],
             },
             f"{opt.out_dir}/policy_step_{crt_step:07d}.pth",
         )
@@ -195,6 +195,13 @@ class PolicyEvaluation:
 
         del self._rewards[:]
         del self._policies[:]
+
+        # some logging
+        log = rlog.getLogger(rlog.getRootLogger().name + ".train")
+        log.put(
+            v_mse=F.mse_loss(values.detach(), returns.detach()),
+            v_hub=F.smooth_l1_loss(values.detach(), returns.detach()),
+        )
 
 
 class DNDPolicyImprovement:
@@ -380,11 +387,14 @@ class ActionWrapper(gym.ActionWrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self._action_type = "Z" if hasattr(env, "n") else "R"
+        self._action_type = "Z" if hasattr(env.action_space, "n") else "R"
 
     def action(self, action):
         if self._action_type == "Z":
-            return action.cpu().item()
+            if torch.is_tensor(action):
+                return action.cpu().item()
+            else:
+                return action
         return action.squeeze().cpu().numpy()
 
 
