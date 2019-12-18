@@ -4,6 +4,8 @@
 import pickle
 from collections import deque
 import torch
+from torch.distributions import Categorical
+import numpy as np
 
 from sklearn.neighbors import KDTree
 from xxhash import xxh64 as xxhs
@@ -17,9 +19,27 @@ def inverse_distance_kernel(x, xs, delta=0.001):
     return distances / distances.sum()
 
 
-def _hash(key):
+def _get_achlioptas(in_size, out_size):
+    W = Categorical(torch.tensor([1 / 6, 2 / 3, 1 / 6])).sample(
+        (in_size, out_size)).float()
+    W[W == 0] = np.sqrt(3)
+    W[W == 1] = 0
+    W[W == 2] = -np.sqrt(3)
+    return W
+
+
+def _hash(key, decimals=None, rnd_proj=None):
+    """ Round to the nearest place given by `decimals` and hash it.
+    """
     assert isinstance(key, torch.Tensor), "This key is not a torch.Tensor."
-    return xxhs(pickle.dumps(key.numpy())).hexdigest()
+    if rnd_proj is not None:
+        with torch.no_grad():
+            key = key @ rnd_proj
+    if decimals is not None:
+        key = np.around(key.numpy(), decimals)
+    else:
+        key = key.numpy()
+    return xxhs(pickle.dumps(key)).hexdigest()
 
 
 class TensorDict:
