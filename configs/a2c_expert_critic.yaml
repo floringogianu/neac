@@ -1,4 +1,4 @@
-experiment: a2c-ll
+experiment: a2c-pre
 algo: a2c
 env_name: LunarLander-v2
 base_seed: 42
@@ -10,11 +10,11 @@ beta_entropy: 0.001
 lr: 0.001
 hidden_size: 64
 
+log_frequency: 100  # episodes
 val_frequency: 25000  # steps
 val_episodes: 100
 
 save_agent: yes
 
-log:
-  frequency: 100  # episodes
-  detailed: True
+model_state: "results/2019Dec06-140540_a2c_ll/0000_a2c_ll/0/policy_step_0075000.pth"
+freeze_critic: no

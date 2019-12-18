@@ -4,10 +4,11 @@ from datetime import datetime
 from pathlib import Path
 
 import torch
-from hyperopt import hp
+from hyperopt import hp  # pylint: disable=unused-import
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.suggest.hyperopt import HyperOptSearch
+import yaml
 
 from main import run
 from src.io_utils import (
@@ -17,25 +18,28 @@ from src.io_utils import (
     flatten_dict,
     expand_dict,
     config_to_string,
+    recursive_update,
 )
 
 
 def tune_trial(search_cfg, base_cfg=None):
-    print("-->", search_cfg)
-    base_cfg.update(expand_dict(search_cfg))
-    cfg = dict_to_namespace(base_cfg)
-    cfg.out_dir = tune.track.trial_dir()
-    cfg.run_id = torch.randint(1000, (1,)).item()
-    run(cfg)
+    """ Update the base config with the search config returned by `tune`,
+        convert to a Namespace and run a trial.
+    """
+    cfg = recursive_update(base_cfg, expand_dict(search_cfg))
+    cfg["out_dir"] = tune.track.trial_dir()  # add output dir for saving stuff
+    cfg["run_id"] = torch.randint(1000, (1,)).item()  # hack the seed
+    with open(f"{cfg['out_dir']}/cfg.yaml", "w") as file:
+        yaml.safe_dump(cfg, file, default_flow_style=False)  # save the new cfg
+    run(dict_to_namespace(cfg))  # run the trial
 
 
 def trial2string(trial):
     s = f"{trial.trial_id}"
     for k, v in trial.config.items():
         if isinstance(v, float):
-            s += f"_{k}_{str(v)[:5]}_"
-        else:
-            s += f"_{k}_{v}_"
+            v = f"{v:.4f}"[:6]
+        s += f"_{k}_{v}_"
     return s
 
 

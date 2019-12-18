@@ -4,37 +4,40 @@ import os
 from argparse import Namespace
 from datetime import datetime
 
-import rlog
 import yaml
 from termcolor import colored as clr
+
+import rlog
 
 
 def configure_logger(opt):
     """ Configures the logger.
     """
-    rlog.init(opt.experiment, path=opt.out_dir)
+    rlog.init(opt.experiment, path=opt.out_dir, tensorboard=True)
     train_log = rlog.getLogger(opt.experiment + ".train")
-    train_log.addMetrics(
-        [
-            rlog.AvgMetric("R/ep", metargs=["reward", "done"]),
-            rlog.AvgMetric("V/step", metargs=["value", 1]),
-            rlog.SumMetric("ep_cnt", resetable=False, metargs=["done"]),
-            rlog.AvgMetric("steps/ep", metargs=["step_no", "done"]),
-            rlog.FPSMetric("fps", metargs=["frame_no"]),
-        ]
+    train_log.add_metrics(
+        rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
+        rlog.AvgMetric("V_step", metargs=["value", 1]),
+        rlog.AvgMetric("v_mse_loss", metargs=["v_mse", 1]),
+        rlog.AvgMetric("v_hub_loss", metargs=["v_hub", 1]),
+        rlog.SumMetric("ep_cnt", resetable=False, metargs=["done"]),
+        rlog.AvgMetric("steps_ep", metargs=["step_no", "done"]),
+        rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
     val_log = rlog.getLogger(opt.experiment + ".valid")
-    val_log.addMetrics(
-        [
-            rlog.AvgMetric("R/ep", metargs=["reward", "done"]),
-            rlog.AvgMetric(
-                "RR/ep", resetable=False, eps=0.8, metargs=["reward", "done"]
-            ),
-            rlog.AvgMetric("V/step", metargs=["value", 1]),
-            rlog.AvgMetric("steps/ep", metargs=["frame_no", "done"]),
-            rlog.FPSMetric("fps", metargs=["frame_no"]),
-        ]
+    val_log.add_metrics(
+        rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
+        rlog.AvgMetric(
+            "RR_ep", resetable=False, eps=0.8, metargs=["reward", "done"]
+        ),
+        rlog.AvgMetric("V_step", metargs=["value", 1]),
+        rlog.AvgMetric("steps_ep", metargs=["frame_no", "done"]),
+        rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
+    if hasattr(opt.log, "detailed") and opt.log.detailed:
+        val_log.add_metrics(
+            rlog.ValueMetric("Vhist", metargs=["value"], tb_type="histogram")
+        )
 
 
 def config_to_string(
@@ -115,7 +118,18 @@ def flatten_dict(dct: dict, prev_key: str = None) -> dict:
     return flat_dct
 
 
+def recursive_update(d: dict, u: dict) -> dict:
+    "Recursively update `d` with stuff in `u`."
+    for k, v in u.items():
+        if isinstance(v, dict):
+            d[k] = recursive_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
+
 def _expand_from_keys(keys: list, value: object) -> dict:
+    """ Expand [a, b c] to {a: {b: {c: value}}} """
     dct = d = {}
     while keys:
         key = keys.pop(0)
@@ -125,15 +139,35 @@ def _expand_from_keys(keys: list, value: object) -> dict:
 
 
 def expand_dict(flat_dict: dict) -> dict:
+    """ Expand {a: va, b.c: vbc, b.d: vbd} to {a: va, b: {c: vbc, d: vbd}}.
+        If not clear from above we want:
+        {'lr':              0.0011,
+         'gamma':           0.95,
+         'dnd.size':        2000,
+         'dnd.lr':          0.77,
+         'dnd.sched.end':   0.0,
+         'dnd.sched.steps': 1000
+        }
+        to this:
+        {'lr': 0.0011,
+         'gamma': 0.95,
+         'dnd': {'size': 2000,
+                 'lr': 0.77,
+                 'sched': {'end': 0.0,
+                           'steps': 1000
+        }}}
+    """
     exp_dict = {}
     for key, value in flat_dict.items():
         if "." in key:
             keys = key.split(".")
             key_ = keys.pop(0)
-            if key_ in exp_dict:
-                exp_dict[key_].update(_expand_from_keys(keys, value))
-            else:
+            if key_ not in exp_dict:
                 exp_dict[key_] = _expand_from_keys(keys, value)
+            else:
+                exp_dict[key_] = recursive_update(
+                    exp_dict[key_], _expand_from_keys(keys, value)
+                )
         else:
             exp_dict[key] = value
     return exp_dict

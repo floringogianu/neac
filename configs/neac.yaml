@@ -4,10 +4,15 @@ env_name: LunarLander-v2
 base_seed: 42
 
 dnd:
-  size: 3_000
-  key_size: 32
-  lr: 0.5
+  size: 6_000
+  key_size: 64
+  knn_no: 12
+  lr: 0.7
+  lr_schedule:
+    end: 0.01
+    steps: 1_000
   use_critic_grads: True
+
 
 training_steps: 2000000
 gamma: 0.99
