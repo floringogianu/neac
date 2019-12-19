@@ -343,13 +343,23 @@ class DNDEstimator(nn.Module):
     """
 
     def __init__(
-        self, state_sz, action_space, dnd_size=20_000, hidden_size=64, knn_no=50
+        self,
+        state_sz,
+        action_space,
+        dnd_size=20_000,
+        hidden_size=64,
+        knn_no=50,
+        hash_opt=None,
     ):
         super().__init__()
         self.affine1 = nn.Linear(state_sz, hidden_size)
         self.policy = get_policy_family(action_space, hidden_size)
         self.value = DND(
-            hidden_size, torch.device("cpu"), max_size=dnd_size, knn_no=knn_no
+            hidden_size,
+            torch.device("cpu"),
+            max_size=dnd_size,
+            knn_no=knn_no,
+            hash_opt=hash_opt,
         )
         print(self.value)
 
@@ -447,6 +457,7 @@ def build_agent(opt, env, estimator=None):
             "hidden_size": opt.dnd.key_size,
             "dnd_size": opt.dnd.size,
             "knn_no": opt.dnd.knn_no,
+            "hash_opt": opt.dnd if hasattr(opt.dnd, "hash") else None
         }
     else:
         raise ValueError(f"{opt.algo} is not a known option.")
