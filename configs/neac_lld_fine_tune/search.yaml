@@ -1,0 +1,128 @@
+hyperopt:
+  lr: ["uniform", [0.0001, 0.005]]
+  nsteps: ["choice", [20, 30, 40, 50, 60]]
+  gamma: ["uniform", [0.91, 0.99]]
+  beta_entropy: ["uniform", [0.001, 0.1]]
+
+  dnd:
+    size: ["choice", [1000, 3000, 5000, 10000, 20000, 30000]]
+    lr: ["uniform", [0.01, 0.7]] 
+    key_size: ["choice", [24, 32, 64]]
+    knn_no: ["choice", [8, 16, 32, 50]]
+    use_critic_grads: ["choice", [True, False]]
+    lr_schedule:
+      end: ["choice", [0.01, 0.05, 0.1]]
+      steps: ["choice", [1000000, 2000000]]
+
+good_inits:
+  - lr: 0.0026
+    gamma: 0.93
+    nsteps: 4
+    beta_entropy: 0.038
+    dnd:
+      size: 4
+      lr: 0.10
+      key_size: 2
+      knn_no: 1
+      use_critic_grads: 0
+      lr_schedule: 
+        end: 0
+        steps: 1
+
+  - lr: 0.0020
+    gamma: 0.91
+    nsteps: 3
+    beta_entropy: 0.001
+    dnd:
+      size: 1
+      lr: 0.43
+      key_size: 1
+      knn_no: 1
+      use_critic_grads: 1
+      lr_schedule: 
+        end: 0
+        steps: 1
+
+  - lr: 0.0009
+    gamma: 0.93
+    nsteps: 4
+    beta_entropy: 0.02
+    dnd:
+      size: 4
+      lr: 0.5
+      key_size: 1
+      knn_no: 1
+      use_critic_grads: 1
+      lr_schedule: 
+        end: 0
+        steps: 1
+
+  - lr: 0.002
+    gamma: 0.93
+    nsteps: 4
+    beta_entropy: 0.02
+    dnd:
+      size: 4
+      lr: 0.131
+      key_size: 2
+      knn_no: 1
+      use_critic_grads: 1
+      lr_schedule: 
+        end: 0
+        steps: 1
+
+  - lr: 0.0026
+    gamma: 0.93
+    nsteps: 4
+    beta_entropy: 0.038
+    dnd:
+      size: 4
+      lr: 0.10
+      key_size: 2
+      knn_no: 1
+      use_critic_grads: 0
+      lr_schedule: 
+        end: 2
+        steps: 1
+
+  - lr: 0.0020
+    gamma: 0.91
+    nsteps: 3
+    beta_entropy: 0.001
+    dnd:
+      size: 1
+      lr: 0.43
+      key_size: 1
+      knn_no: 1
+      use_critic_grads: 1
+      lr_schedule: 
+        end: 2
+        steps: 1
+
+  - lr: 0.0009
+    gamma: 0.93
+    nsteps: 4
+    beta_entropy: 0.02
+    dnd:
+      size: 4
+      lr: 0.5
+      key_size: 1
+      knn_no: 1
+      use_critic_grads: 1
+      lr_schedule: 
+        end: 2
+        steps: 1
+
+  - lr: 0.002
+    gamma: 0.93
+    nsteps: 4
+    beta_entropy: 0.02
+    dnd:
+      size: 4
+      lr: 0.131
+      key_size: 2
+      knn_no: 1
+      use_critic_grads: 1
+      lr_schedule: 
+        end: 2
+        steps: 1
