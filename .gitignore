@@ -1,6 +1,7 @@
 .vscode/
 results/
 misc/
+val_dsets/
 .liftoff_cfg.yaml
 
 # Byte-compiled / optimized / DLL files
