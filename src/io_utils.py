@@ -1,6 +1,7 @@
 """ I/O utils.
 """
 import os
+import subprocess
 from argparse import Namespace
 from datetime import datetime
 
@@ -179,3 +180,19 @@ def read_config(cfg_path):
     with open(cfg_path) as handler:
         config_data = yaml.load(handler, Loader=yaml.SafeLoader)
     return dict_to_namespace(config_data)
+
+
+def get_git_info() -> str:
+    """ Return sha@branch.
+    This can maybe be used when restarting experiments. We can trgger a
+    warning if the current code-base does not match the one we are trying
+    to resume from.
+    """
+    cmds = [
+        ["git", "rev-parse", "--short", "HEAD"],  # short commit sha
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],  # branch name
+    ]
+    res = []
+    for cmd in cmds:
+        res.append(subprocess.check_output(cmd).strip().decode("utf-8"))
+    return "@".join(res)

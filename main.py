@@ -513,6 +513,7 @@ def run(opt):
 
     # log
     rlog.info(f"\n{U.config_to_string(opt)}")
+    rlog.info(f"Current git checkout: {U.get_git_info()}")
     rlog.info(policy_improvement)
 
     # train
@@ -527,6 +528,7 @@ def main():
     """ Read config files using liftoff and run experiment.
     """
     opt = parse_opts()
+    opt.git = U.get_git_info()
     run(opt)
 
 
