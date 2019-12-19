@@ -1,0 +1,13 @@
+experiment: a2c_lld
+algo: a2c
+env_name: LunarLander-v2
+base_seed: 42
+training_steps: 2000000
+gamma: 0.99
+nsteps: 50
+beta_entropy: 0.001
+lr: 0.0007
+hidden_size: 64
+log_frequency: 100
+val_frequency: 25000
+val_episodes: 100
