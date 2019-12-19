@@ -280,6 +280,13 @@ class DNDPolicyEvaluation(PolicyEvaluation):
         self._policies.clear()
         self._policy.rebuild_dnd()
 
+        # some logging
+        log = rlog.getLogger(rlog.getRootLogger().name + ".train")
+        log.put(
+            v_mse=F.mse_loss(values.detach(), returns.detach()),
+            v_hub=F.smooth_l1_loss(values.detach(), returns.detach()),
+        )
+
 
 class DiscretePolicy(nn.Module):
     """ A policy for discrete actions.
@@ -343,13 +350,23 @@ class DNDEstimator(nn.Module):
     """
 
     def __init__(
-        self, state_sz, action_space, dnd_size=20_000, hidden_size=64, knn_no=50
+        self,
+        state_sz,
+        action_space,
+        dnd_size=20_000,
+        hidden_size=64,
+        knn_no=50,
+        hash_opt=None,
     ):
         super().__init__()
         self.affine1 = nn.Linear(state_sz, hidden_size)
         self.policy = get_policy_family(action_space, hidden_size)
         self.value = DND(
-            hidden_size, torch.device("cpu"), max_size=dnd_size, knn_no=knn_no
+            hidden_size,
+            torch.device("cpu"),
+            max_size=dnd_size,
+            knn_no=knn_no,
+            hash_opt=hash_opt,
         )
         print(self.value)
 
@@ -427,11 +444,13 @@ def get_schedule(start, end, steps):
     return itertools.chain(frange(start, end, incr), itertools.repeat(end))
 
 
-def get_dnd_update(dnd):
-    """ `dnd` received here is the global `opt.dnd`."""
-    if not hasattr(dnd, "lr_schedule"):
-        return lambda old, new: old + dnd.lr * (new - old)
-    start, end, steps = dnd.lr, dnd.lr_schedule.end, dnd.lr_schedule.steps
+def get_dnd_update(opt):
+    """ Returns the update rule of the DND.
+        `opt` received here is the global `opt.dnd`.
+    """
+    if not hasattr(opt, "lr_schedule"):
+        return lambda old, new: old + opt.lr * (new - old)
+    start, end, steps = opt.lr, opt.lr_schedule.end, opt.lr_schedule.steps
     lr_schedule = get_schedule(start, end, steps)
     return lambda old, new: old + next(lr_schedule) * (new - old)
 
@@ -447,6 +466,7 @@ def build_agent(opt, env, estimator=None):
             "hidden_size": opt.dnd.key_size,
             "dnd_size": opt.dnd.size,
             "knn_no": opt.dnd.knn_no,
+            "hash_opt": opt.dnd if hasattr(opt.dnd, "hash") else None
         }
     else:
         raise ValueError(f"{opt.algo} is not a known option.")

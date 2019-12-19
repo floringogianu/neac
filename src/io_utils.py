@@ -15,7 +15,7 @@ def configure_logger(opt):
     """
     rlog.init(opt.experiment, path=opt.out_dir, tensorboard=True)
     train_log = rlog.getLogger(opt.experiment + ".train")
-    train_log.add_metrics(
+    train_log.addMetrics(
         rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
         rlog.AvgMetric("V_step", metargs=["value", 1]),
         rlog.AvgMetric("v_mse_loss", metargs=["v_mse", 1]),
@@ -25,7 +25,7 @@ def configure_logger(opt):
         rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
     val_log = rlog.getLogger(opt.experiment + ".valid")
-    val_log.add_metrics(
+    val_log.addMetrics(
         rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
         rlog.AvgMetric(
             "RR_ep", resetable=False, eps=0.8, metargs=["reward", "done"]
@@ -35,7 +35,7 @@ def configure_logger(opt):
         rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
     if hasattr(opt.log, "detailed") and opt.log.detailed:
-        val_log.add_metrics(
+        val_log.addMetrics(
             rlog.ValueMetric("Vhist", metargs=["value"], tb_type="histogram")
         )
 
