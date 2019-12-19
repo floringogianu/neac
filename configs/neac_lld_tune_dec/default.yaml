@@ -1,0 +1,31 @@
+experiment: neac_lld_dec
+algo: neac
+env_name: LunarLander-v2
+base_seed: 42
+
+training_steps: 2000000
+
+dnd:
+  size: 6_000
+  key_size: 64
+  knn_no: 50
+  lr: 0.2
+  lr_schedule:
+    end: 0.01
+    steps: 2_000_000  # should be equal to training_steps or lower.
+  hash:
+    achlioptas: 6
+    decimals: 1
+  use_critic_grads: True
+
+gamma: 0.99
+nsteps: 60
+beta_entropy: 0.001
+lr: 0.005
+
+val_frequency: 25000 # steps
+val_episodes: 100
+
+log:
+  frequency: 100  # episodes
+  detailed: False

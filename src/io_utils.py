@@ -1,6 +1,7 @@
 """ I/O utils.
 """
 import os
+import subprocess
 from argparse import Namespace
 from datetime import datetime
 
@@ -15,7 +16,7 @@ def configure_logger(opt):
     """
     rlog.init(opt.experiment, path=opt.out_dir, tensorboard=True)
     train_log = rlog.getLogger(opt.experiment + ".train")
-    train_log.add_metrics(
+    train_log.addMetrics(
         rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
         rlog.AvgMetric("V_step", metargs=["value", 1]),
         rlog.AvgMetric("v_mse_loss", metargs=["v_mse", 1]),
@@ -25,7 +26,7 @@ def configure_logger(opt):
         rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
     val_log = rlog.getLogger(opt.experiment + ".valid")
-    val_log.add_metrics(
+    val_log.addMetrics(
         rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
         rlog.AvgMetric(
             "RR_ep", resetable=False, eps=0.8, metargs=["reward", "done"]
@@ -35,7 +36,7 @@ def configure_logger(opt):
         rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
     if hasattr(opt.log, "detailed") and opt.log.detailed:
-        val_log.add_metrics(
+        val_log.addMetrics(
             rlog.ValueMetric("Vhist", metargs=["value"], tb_type="histogram")
         )
 
@@ -179,3 +180,19 @@ def read_config(cfg_path):
     with open(cfg_path) as handler:
         config_data = yaml.load(handler, Loader=yaml.SafeLoader)
     return dict_to_namespace(config_data)
+
+
+def get_git_info() -> str:
+    """ Return sha@branch.
+    This can maybe be used when restarting experiments. We can trgger a
+    warning if the current code-base does not match the one we are trying
+    to resume from.
+    """
+    cmds = [
+        ["git", "rev-parse", "--short", "HEAD"],  # short commit sha
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],  # branch name
+    ]
+    res = []
+    for cmd in cmds:
+        res.append(subprocess.check_output(cmd).strip().decode("utf-8"))
+    return "@".join(res)

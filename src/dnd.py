@@ -3,11 +3,12 @@
 """
 import pickle
 from collections import deque
-import torch
-from torch.distributions import Categorical
-import numpy as np
+from functools import partial
 
+import numpy as np
+import torch
 from sklearn.neighbors import KDTree
+from torch.distributions import Categorical
 from xxhash import xxh64 as xxhs
 
 
@@ -20,8 +21,11 @@ def inverse_distance_kernel(x, xs, delta=0.001):
 
 
 def _get_achlioptas(in_size, out_size):
-    W = Categorical(torch.tensor([1 / 6, 2 / 3, 1 / 6])).sample(
-        (in_size, out_size)).float()
+    W = (
+        Categorical(torch.tensor([1 / 6, 2 / 3, 1 / 6]))
+        .sample((in_size, out_size))
+        .float()
+    )
     W[W == 0] = np.sqrt(3)
     W[W == 1] = 0
     W[W == 2] = -np.sqrt(3)
@@ -42,16 +46,31 @@ def _hash(key, decimals=None, rnd_proj=None):
     return xxhs(pickle.dumps(key)).hexdigest()
 
 
+def _get_hash_fn(opt):
+    """ Returns a hash function.
+        `opt` received here is the global `opt.dnd`.
+    """
+    if hasattr(opt, "hash"):
+        A, decimals = None, None
+        if hasattr(opt.hash, "achlioptas"):
+            A = _get_achlioptas(opt.key_size, opt.hash.achlioptas)
+        if hasattr(opt.hash, "decimals"):
+            decimals = opt.hash.decimals
+        return partial(_hash, decimals=decimals, rnd_proj=A), A, decimals
+    return _hash, None, "full"
+
+
 class TensorDict:
     """ This might be a mistake :)
     """
 
-    def __init__(self, max_size, key_size, device):
+    def __init__(self, max_size, key_size, device, hash_fn=_hash):
         self.__max_size = max_size
         self.__hash2idx = {}
         self.__keys = torch.zeros(max_size, key_size).to(device)
         self.__values = torch.zeros(max_size, 1).to(device)
         self.__available_idxs = deque(reversed(range(max_size)))
+        self.__hash = hash_fn
 
     def keys(self):
         """ Returns the actual tensors representing the keys of the dict.
@@ -72,20 +91,20 @@ class TensorDict:
         """ Returns the underlying index of a key.
             Used for syncing other data structures.
         """
-        return self.__hash2idx[_hash(key)]
+        return self.__hash2idx[self.__hash(key)]
 
     @property
     def is_full(self):
         return len(self.__hash2idx) == self.__max_size
 
     def __getitem__(self, key):
-        return self.__values[self.__hash2idx[_hash(key)]]
+        return self.__values[self.__hash2idx[self.__hash(key)]]
 
     def __setitem__(self, key, value):
         """ Inserts a new key if the dict is not full or it updates an existing
             key. Otherwise it throws a KeyError.
         """
-        key_hash = _hash(key)
+        key_hash = self.__hash(key)
         if key_hash in self.__hash2idx:
             # updates the value of existing key
             idx = self.__hash2idx[key_hash]
@@ -99,7 +118,7 @@ class TensorDict:
         self.__values[idx] = value
 
     def __delitem__(self, key):
-        key_hash = _hash(key)
+        key_hash = self.__hash(key)
         idx = self.__hash2idx[key_hash]
         # zero-out data
         self.__keys[idx].zero_()
@@ -109,7 +128,7 @@ class TensorDict:
         del self.__hash2idx[key_hash]
 
     def __contains__(self, key):
-        return _hash(key) in self.__hash2idx
+        return self.__hash(key) in self.__hash2idx
 
     def __len__(self):
         return len(self.__hash2idx)
@@ -138,15 +157,21 @@ class DND:
         `h` are embeddings (vectors).
     """
 
-    def __init__(self, key_size, device, knn_no=50, max_size=50000):
+    def __init__(
+        self, key_size, device, knn_no=50, max_size=50000, hash_opt=None
+    ):
         self._max_size = max_size
         self._key_size = key_size
         self._knn_no = knn_no
-        self._dict = TensorDict(max_size, key_size, device=device)
+        # TODO: Make the hash function an object.
+        hash_fn, self._rnd_proj, self._decimals = _get_hash_fn(hash_opt)
+        self._dict = TensorDict(
+            max_size, key_size, device=device, hash_fn=hash_fn
+        )
         self._kd_tree = None  # lazy init
         self._priority = {}
-        # self._kde = inverse_distance_kernel
         self._kde = inverse_distance_kernel
+        self._hit_cnt, self._add_cnt = 0, 0
 
     @property
     def ready(self):
@@ -165,6 +190,7 @@ class DND:
             # old key, update its value
             old_v = self._dict[h]
             self._dict[h] = update_rule(old_v, v)
+            self._hit_cnt += 1
         elif len(self._dict) < self._max_size:
             # new key, DND not full, append to DND
             self._dict[h] = v
@@ -174,6 +200,12 @@ class DND:
             del self._dict[self._get_least_used()]
             self._dict[h] = v
             self._priority[self._dict.key2idx(h)] = 0
+        self._add_cnt += 1
+
+        if self._add_cnt % 10_000 == 0:
+            hr=self._hit_cnt / self._add_cnt * 100
+            print(f"hit rate={hr:3.1f}% | h={self._hit_cnt}, a={self._add_cnt}")
+            self._hit_cnt, self._add_cnt = 0, 0
 
     def lookup(self, h):
         """ Computes the value of `h` based on its closest `K` neighbours.
@@ -231,6 +263,10 @@ class DND:
         return len(self._dict)
 
     def __str__(self):
-        return "DND(size={size}, key_size={key_size}, K={knn_no})".format(
-            size=self._max_size, knn_no=self._knn_no, key_size=self._key_size
+        return "DND(size={}, key_size={}, K={}, rnd_proj={}, dec={})".format(
+            self._max_size,
+            self._knn_no,
+            self._key_size,
+            self._rnd_proj.shape if self._rnd_proj is not None else None,
+            self._decimals,
         )
