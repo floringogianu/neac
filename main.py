@@ -15,6 +15,7 @@ from ray import tune
 from termcolor import colored as clr
 from torch.distributions import Categorical, Normal
 
+import pybulletgym  # pylint: disable=unused-import
 import rlog
 import src.io_utils as U
 from src.dnd import DND
