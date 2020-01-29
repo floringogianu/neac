@@ -1,0 +1,20 @@
+experiment: a2c-ip_blt
+algo: a2c
+env_name: ReacherPyBulletEnv-v0
+base_seed: 42
+
+training_steps: 1000000
+gamma: 0.99
+nsteps: 50
+beta_entropy: 0.001
+lr: 0.001
+hidden_size: 64
+
+val_frequency: 25000  # steps
+val_episodes: 100
+
+save_agent: yes
+
+log:
+  frequency: 100  # episodes
+  detailed: True
