@@ -413,7 +413,7 @@ class ActionWrapper(gym.ActionWrapper):
                 return action.cpu().item()
             else:
                 return action
-        return action.squeeze().cpu().numpy()
+        return action.flatten().cpu().numpy()
 
 
 AGENTS = {
