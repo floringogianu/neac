@@ -1,6 +1,6 @@
 experiment: a2c-ll
 algo: a2c
-env_name: nvertedPendulumPyBulletEnv-v0
+env_name: ReacherPyBulletEnv-v0
 base_seed: 42
 
 training_steps: 1000000
