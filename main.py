@@ -19,7 +19,7 @@ import pybulletgym  # pylint: disable=unused-import
 import rlog
 import src.io_utils as U
 from src.dnd import DND
-from src.rl_routines import Episode
+from src.rl_routines import Episode, train_rounds
 
 DEVICE = torch.device("cpu")
 Policy = namedtuple("Policy", ["action", "pi", "value"])
@@ -27,41 +27,47 @@ DNDPolicy = namedtuple("DNDpolicy", ["action", "pi", "value", "h"])
 
 
 def train(env, policy, policy_evaluation, opt):
-    """ Training routine.
-    """
-    log = rlog.getLogger(f"{opt.experiment}.train")
-    log_fmt = (
-        "[{0:6d}/{ep_cnt:5d}] R/ep={R_ep:8.2f}, V/step={V_step:8.2f}"
-        + " | steps/ep={steps_ep:8.2f}, fps={fps:8.2f}."
-    )
-    log.reset()
+    """ Orchestrates the learning, validation phases and logging. """
 
-    ep_cnt, step_cnt = 1, 1
-    while step_cnt <= opt.training_steps:
+    rlog.info("\nStarting training...")
 
-        for state, pi, reward, state_, done in Episode(env, policy):
-            policy_evaluation.learn(state, pi, reward, state_, done)
-            log.put(
-                reward=reward,
-                value=pi.value.data.squeeze().item(),
-                done=done,
-                frame_no=1,
-                step_no=1,
+    for start, end in train_rounds(opt.training_steps, opt.val_frequency):
+        # learn for a number of steps
+        learn(env, policy, policy_evaluation, (start, end))
+
+        # validate
+        results = validate(policy, opt, end)
+
+        # save the agent
+        if hasattr(opt, "save_agent") and opt.save_agent:
+            torch.save(
+                {
+                    "step": end,
+                    "policy": policy.estimator_state(),
+                    "R/ep": results["R_ep"],
+                },
+                f"{opt.out_dir}/policy_step_{end:07d}.pth",
             )
 
-            step_cnt += 1
 
-            if step_cnt % opt.val_frequency == 0:
-                validate(policy, opt, step_cnt)
+def learn(env, policy, policy_evaluation, steps=None, cb=None):
+    """ Learning routine.
+    """
+    if steps:
+        step, max_step = steps
+    else:
+        step, max_step = 1, None
 
-        if ep_cnt % opt.log.frequency == 0:
-            summary = log.summarize()
-            log.info(log_fmt.format(step_cnt, **summary))
-            log.trace(step=step_cnt, **summary)
-            log.reset()
-            gc.collect()
-        ep_cnt += 1
-    env.close()
+    while True:
+        for state, pi, reward, state_, done in Episode(env, policy):
+            policy_evaluation.learn(state, pi, reward, state_, done)
+
+            if cb is not None:
+                cb(step, pi=pi.value.item(), reward=reward, done=done)
+
+            step += 1
+            if step == max_step:
+                return
 
 
 def validate(policy, opt, crt_step):
@@ -69,10 +75,6 @@ def validate(policy, opt, crt_step):
     env = ActionWrapper(TorchWrapper(gym.make(opt.env_name)))
     policy = deepcopy(policy)
     log = rlog.getLogger(f"{opt.experiment}.valid")
-    log_fmt = (
-        "@{0:6d}        R/ep={R_ep:8.2f}, RunR/ep={RR_ep:8.2f}"
-        + " | steps/ep={steps_ep:8.2f}, fps={fps:8.2f}."
-    )
     log.reset()  # so we don't screw up the timer
 
     for _ in range(1, opt.val_episodes):
@@ -86,31 +88,13 @@ def validate(policy, opt, crt_step):
                     step_no=1,
                 )
 
+    env.close()
+
     summary = log.summarize()
-    log.info(log_fmt.format(crt_step, **summary))
+    log.info(log.log_fmt.format(crt_step, **summary))
     log.trace(step=crt_step, **summary)
     log.reset()
-    try:
-        tune.track.log(
-            episodic_return=summary["R_ep"],
-            running_return=summary["RR_ep"],
-            value_estimate=summary["V_step"],
-            train_step=crt_step,
-        )
-    except AttributeError as err:
-        log.debug("Probably not in a ray experiment\n: %s", err)
-
-    if hasattr(opt, "save_agent") and opt.save_agent:
-        torch.save(
-            {
-                "step": crt_step,
-                "policy": policy.estimator_state(),
-                "R/ep": summary["R_ep"],
-            },
-            f"{opt.out_dir}/policy_step_{crt_step:07d}.pth",
-        )
-
-    gc.collect()
+    return summary
 
 
 class PolicyImprovement:
@@ -467,7 +451,7 @@ def build_agent(opt, env, estimator=None):
             "hidden_size": opt.dnd.key_size,
             "dnd_size": opt.dnd.size,
             "knn_no": opt.dnd.knn_no,
-            "hash_opt": opt.dnd if hasattr(opt.dnd, "hash") else None
+            "hash_opt": opt.dnd if hasattr(opt.dnd, "hash") else None,
         }
     else:
         raise ValueError(f"{opt.algo} is not a known option.")
@@ -496,13 +480,12 @@ def build_agent(opt, env, estimator=None):
     return policy, policy_evaluation
 
 
-def run(opt):
-    """ Run experiment. This function is being launched by liftoff.
-    """
+def configure_experiment(opt):
     U.configure_logger(opt)
 
     # set seed
-    opt.seed = (opt.run_id + 1) * opt.base_seed
+    if not hasattr(opt, "seed"):
+        opt.seed = (opt.run_id + 1) * opt.base_seed
     torch.manual_seed(opt.seed)
 
     # configure env
@@ -515,6 +498,14 @@ def run(opt):
     # log
     rlog.info(f"\n{U.config_to_string(opt)}")
     rlog.info(policy_improvement)
+
+    return env, policy_improvement, policy_evaluation
+
+
+def run(opt):
+    """ Run experiment. This function is being launched by liftoff.
+    """
+    env, policy_improvement, policy_evaluation = configure_experiment(opt)
 
     # train
     try:

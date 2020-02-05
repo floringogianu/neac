@@ -3,23 +3,60 @@
 from datetime import datetime
 from pathlib import Path
 
+import ray
 import torch
+import yaml
 from hyperopt import hp  # pylint: disable=unused-import
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.suggest.hyperopt import HyperOptSearch
-import yaml
 
-from main import run
+from main import configure_experiment, learn, validate
 from src.io_utils import (
+    config_to_string,
     dict_to_namespace,
+    expand_dict,
+    flatten_dict,
     namespace_to_dict,
     read_config,
-    flatten_dict,
-    expand_dict,
-    config_to_string,
     recursive_update,
 )
+from src.rl_routines import train_rounds
+
+
+@ray.remote(num_cpus=1)
+class Seed:
+    def __init__(self, cfg, seed):
+        self.cfg = cfg
+        self.cfg.seed = seed
+
+        # create paths
+        self.cfg.out_dir = f"{cfg.out_dir}/{seed}"
+        Path(self.cfg.out_dir).mkdir(parents=True, exist_ok=True)
+
+        self.env, self.pi, self.pi_evaluation = configure_experiment(self.cfg)
+
+    def train(self, train_round):
+        env, policy, policy_evaluation = self.env, self.pi, self.pi_evaluation
+        start, end = train_round
+
+        # learn for a number of steps
+        learn(env, policy, policy_evaluation, train_round)
+
+        # validate
+        results = validate(policy, self.cfg, end)
+
+        # save the agent
+        if hasattr(self.cfg, "save_agent") and self.cfg.save_agent:
+            torch.save(
+                {
+                    "step": end,
+                    "policy": policy.estimator_state(),
+                    "R/ep": results["R_ep"],
+                },
+                f"{self.cfg.out_dir}/policy_step_{end:07d}.pth",
+            )
+        return results
 
 
 def normalize(xs, rescaled=True):
@@ -38,8 +75,8 @@ def tune_trial(search_cfg, base_cfg=None, get_objective=None):
         convert to a Namespace and run a trial.
     """
     cfg = recursive_update(base_cfg, expand_dict(search_cfg))
+
     cfg["out_dir"] = tune.track.trial_dir()  # add output dir for saving stuff
-    cfg["run_id"] = torch.randint(1000, (1,)).item()  # hack the seed
     with open(f"{cfg['out_dir']}/cfg.yaml", "w") as file:
         yaml.safe_dump(cfg, file, default_flow_style=False)  # save the new cfg
 
@@ -148,6 +185,7 @@ def main(cmdl):
         local_dir="./results",
         num_samples=cmdl.trials,
         trial_name_creator=trial2string,
+        resources_per_trial={"cpu": 3},
     )
 
     dfs = analysis.trial_dataframes

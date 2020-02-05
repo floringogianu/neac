@@ -49,3 +49,25 @@ class Episode:
         """ Return steps taken in the environment.
         """
         return self.__step_cnt
+
+
+def train_rounds(steps, interval):
+    """ Returns a generator of tuples making a training round.
+
+    Args:
+        steps (int): Total number of training steps.
+        interval (int): Frequency of training rounds.
+
+    Returns:
+        generator: Generator of (start, end) tuples.
+
+    Example:
+        steps, interval = 1_000_000, 5_000
+        val_freq = 5_000
+
+        [(0, 5000), (5000, 10000), ...]
+    """
+    return (
+        (i * interval, (i * interval) + interval)
+        for i in range(steps // interval)
+    )
