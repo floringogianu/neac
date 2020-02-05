@@ -25,6 +25,10 @@ def configure_logger(opt):
         rlog.AvgMetric("steps_ep", metargs=["step_no", "done"]),
         rlog.FPSMetric("fps", metargs=["frame_no"]),
     )
+    train_log.log_fmt = (
+        "[{0:6d}/{ep_cnt:5d}] R/ep={R_ep:8.2f}, V/step={V_step:8.2f}"
+        + " | steps/ep={steps_ep:8.2f}, fps={fps:8.2f}."
+    )
     val_log = rlog.getLogger(opt.experiment + ".valid")
     val_log.addMetrics(
         rlog.AvgMetric("R_ep", metargs=["reward", "done"]),
@@ -39,6 +43,10 @@ def configure_logger(opt):
         val_log.addMetrics(
             rlog.ValueMetric("Vhist", metargs=["value"], tb_type="histogram")
         )
+    val_log.log_fmt = (
+        "@{0:6d}        R/ep={R_ep:8.2f}, RunR/ep={RR_ep:8.2f}"
+        + " | steps/ep={steps_ep:8.2f}, fps={fps:8.2f}."
+    )
 
 
 def config_to_string(
