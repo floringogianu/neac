@@ -9,7 +9,6 @@ hyperopt:
     lr: ["uniform", [0.01, 0.7]] 
     key_size: ["choice", [24, 32, 64]]
     knn_no: ["choice", [8, 16, 32, 50]]
-    use_critic_grads: ["choice", [True, False]]
     hash:
       achlioptas: ["choice", [4, 6, 8, 12]]
 
@@ -23,7 +22,6 @@ good_inits:
       lr: 0.2
       key_size: 1
       knn_no: 1
-      use_critic_grads: 0
       hash:
         achlioptas: 1
 
@@ -36,7 +34,6 @@ good_inits:
       lr: 0.2
       key_size: 1
       knn_no: 1
-      use_critic_grads: 1
       hash:
         achlioptas: 1
 
@@ -49,7 +46,6 @@ good_inits:
       lr: 0.2
       key_size: 1
       knn_no: 1
-      use_critic_grads: 0
       hash:
         achlioptas: 1
 
@@ -62,7 +58,6 @@ good_inits:
       lr: 0.2
       key_size: 1
       knn_no: 1
-      use_critic_grads: 1
       hash:
         achlioptas: 1
 
@@ -75,7 +70,6 @@ good_inits:
       lr: 0.5
       key_size: 1
       knn_no: 1
-      use_critic_grads: 0
       hash:
         achlioptas: 1
 
@@ -88,7 +82,6 @@ good_inits:
       lr: 0.5
       key_size: 1
       knn_no: 1
-      use_critic_grads: 1
       hash:
         achlioptas: 1
 
@@ -101,7 +94,6 @@ good_inits:
       lr: 0.5
       key_size: 1
       knn_no: 1
-      use_critic_grads: 0
       hash:
         achlioptas: 1
 
@@ -114,6 +106,5 @@ good_inits:
       lr: 0.5
       key_size: 1
       knn_no: 1
-      use_critic_grads: 1
       hash:
         achlioptas: 1
