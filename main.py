@@ -248,7 +248,6 @@ class DNDPolicyEvaluation(PolicyEvaluation):
 
         policy_loss = (-log_pi * advantage.detach()).sum()
         critic_loss = F.smooth_l1_loss(values, returns, reduction="sum")
-        critic_loss.data.fill_(0)
 
         self._optimizer.zero_grad()
         loss = policy_loss + self._beta * entropy.mean()
