@@ -38,7 +38,7 @@ class Seed:
 
     def train(self, train_round):
         env, policy, policy_evaluation = self.env, self.pi, self.pi_evaluation
-        start, end = train_round
+        _, end = train_round
 
         # learn for a number of steps
         learn(env, policy, policy_evaluation, train_round)
