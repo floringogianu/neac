@@ -1,6 +1,6 @@
 hyperopt:
   lr: ["uniform", [0.0001, 0.005]]
-  nsteps: ["choice", [20, 30, 40, 50, 60]]
+  nsteps: ["choice", [20, 30, 60]]
   gamma: ["uniform", [0.91, 0.99]]
   beta_entropy: ["uniform", [0.001, 0.1]]
 
@@ -9,93 +9,3 @@ hyperopt:
     lr: ["uniform", [0.01, 0.7]] 
     key_size: ["choice", [24, 32, 64]]
     knn_no: ["choice", [8, 16, 32, 50]]
-    use_critic_grads: ["choice", [True, False]]
-
-good_inits:
-  - lr: 0.0007
-    gamma: 0.99
-    nsteps: 3
-    beta_entropy: 0.001
-    dnd:
-      size: 3
-      lr: 0.2
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 0
-
-  - lr: 0.001
-    gamma: 0.99
-    nsteps: 3
-    beta_entropy: 0.001
-    dnd:
-      size: 3
-      lr: 0.2
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 1
-
-  - lr: 0.0009
-    gamma: 0.93
-    nsteps: 4
-    beta_entropy: 0.02
-    dnd:
-      size: 3
-      lr: 0.2
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 0
-
-  - lr: 0.0004
-    gamma: 0.91
-    nsteps: 4
-    beta_entropy: 0.01
-    dnd:
-      size: 3
-      lr: 0.2
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 1
-
-  - lr: 0.0007
-    gamma: 0.99
-    nsteps: 3
-    beta_entropy: 0.001
-    dnd:
-      size: 4
-      lr: 0.5
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 0
-
-  - lr: 0.001
-    gamma: 0.99
-    nsteps: 3
-    beta_entropy: 0.001
-    dnd:
-      size: 4
-      lr: 0.5
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 1
-
-  - lr: 0.0009
-    gamma: 0.93
-    nsteps: 4
-    beta_entropy: 0.02
-    dnd:
-      size: 4
-      lr: 0.5
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 0
-
-  - lr: 0.0004
-    gamma: 0.91
-    nsteps: 4
-    beta_entropy: 0.01
-    dnd:
-      size: 4
-      lr: 0.5
-      key_size: 1
-      knn_no: 1
-      use_critic_grads: 1
