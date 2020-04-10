@@ -22,7 +22,18 @@ from src.io_utils import (
 )
 
 
-def tune_trial(search_cfg, base_cfg=None):
+def normalize(xs, rescaled=True):
+    """ Normalize and rescale """
+    # TODO: think again about this
+    val = xs.mean().pow(2) - xs.var()
+    if rescaled:
+        rmax = 1_000_000
+        rmin = -222_222.2188
+        return (val - rmin) / (rmax - rmin)
+    return val
+
+
+def tune_trial(search_cfg, base_cfg=None, get_objective=None):
     """ Update the base config with the search config returned by `tune`,
         convert to a Namespace and run a trial.
     """
@@ -31,7 +42,33 @@ def tune_trial(search_cfg, base_cfg=None):
     cfg["run_id"] = torch.randint(1000, (1,)).item()  # hack the seed
     with open(f"{cfg['out_dir']}/cfg.yaml", "w") as file:
         yaml.safe_dump(cfg, file, default_flow_style=False)  # save the new cfg
-    run(dict_to_namespace(cfg))  # run the trial
+
+    cfg = dict_to_namespace(cfg)
+
+    # Start three different Seeds on separate processes
+    seeds = [
+        Seed.remote(cfg, seed.item()) for seed in torch.randint(1000, (3,))
+    ]
+
+    for start, end in train_rounds(cfg.training_steps, cfg.val_frequency):
+        # launch training and validation tasks
+        tasks = [seed.train.remote((start, end)) for seed in seeds]
+        # and imediately collect them
+        results = [ray.get(task) for task in tasks]
+
+        # we log the mean of three seeds hoping that this way
+        # tune will find more robust hyperparams.
+        episodic_returns = torch.tensor([r["R_ep"] for r in results])
+        objective = mean_returns = torch.mean(episodic_returns)
+        if get_objective is not None:
+            # or we rescale the mean with the variance of the seeds
+            # so that we discourage high variance configs.
+            objective = get_objective(episodic_returns)
+        tune.track.log(
+            criterion=objective.item(),
+            episodic_return=mean_returns.item(),
+            train_step=end,
+        )
 
 
 def trial2string(trial):
@@ -86,7 +123,7 @@ def main(cmdl):
     # search algorithm
     hyperopt_search = HyperOptSearch(
         search_space,
-        metric="episodic_return",
+        metric="criterion",
         mode="max",
         max_concurrent=cmdl.workers,
         points_to_evaluate=good_init,
@@ -95,7 +132,7 @@ def main(cmdl):
     # early stopping
     scheduler = ASHAScheduler(
         time_attr="train_step",
-        metric="episodic_return",
+        metric="criterion",
         mode="max",
         max_t=base_cfg["training_steps"],  # max length of the experiment
         grace_period=cmdl.grace_steps,  # stops after 20 logged steps
@@ -103,7 +140,7 @@ def main(cmdl):
     )
 
     analysis = tune.run(
-        lambda x: tune_trial(x, base_cfg=base_cfg),
+        lambda x: tune_trial(x, base_cfg=base_cfg, get_objective=None),
         name=search_name,
         # config=search_space,
         search_alg=hyperopt_search,
