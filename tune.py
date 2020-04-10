@@ -38,7 +38,7 @@ class Seed:
 
     def train(self, train_round):
         env, policy, policy_evaluation = self.env, self.pi, self.pi_evaluation
-        start, end = train_round
+        _, end = train_round
 
         # learn for a number of steps
         learn(env, policy, policy_evaluation, train_round)
@@ -59,7 +59,18 @@ class Seed:
         return results
 
 
-def tune_trial(search_cfg, base_cfg=None):
+def normalize(xs, rescaled=True):
+    """ Normalize and rescale """
+    # TODO: think again about this
+    val = xs.mean().pow(2) - xs.var()
+    if rescaled:
+        rmax = 1_000_000
+        rmin = -222_222.2188
+        return (val - rmin) / (rmax - rmin)
+    return val
+
+
+def tune_trial(search_cfg, base_cfg=None, get_objective=None):
     """ Update the base config with the search config returned by `tune`,
         convert to a Namespace and run a trial.
     """
@@ -83,9 +94,18 @@ def tune_trial(search_cfg, base_cfg=None):
         results = [ray.get(task) for task in tasks]
 
         # we log the mean of three seeds hoping that this way
-        # tune will find more robust hyperparams
-        mean_return = torch.mean(torch.tensor([r["R_ep"] for r in results]))
-        tune.track.log(episodic_return=mean_return.item(), train_step=end)
+        # tune will find more robust hyperparams.
+        episodic_returns = torch.tensor([r["R_ep"] for r in results])
+        objective = mean_returns = torch.mean(episodic_returns)
+        if get_objective is not None:
+            # or we rescale the mean with the variance of the seeds
+            # so that we discourage high variance configs.
+            objective = get_objective(episodic_returns)
+        tune.track.log(
+            criterion=objective.item(),
+            episodic_return=mean_returns.item(),
+            train_step=end,
+        )
 
 
 def trial2string(trial):
@@ -140,7 +160,7 @@ def main(cmdl):
     # search algorithm
     hyperopt_search = HyperOptSearch(
         search_space,
-        metric="episodic_return",
+        metric="criterion",
         mode="max",
         max_concurrent=cmdl.workers,
         points_to_evaluate=good_init,
@@ -149,7 +169,7 @@ def main(cmdl):
     # early stopping
     scheduler = ASHAScheduler(
         time_attr="train_step",
-        metric="episodic_return",
+        metric="criterion",
         mode="max",
         max_t=base_cfg["training_steps"],  # max length of the experiment
         grace_period=cmdl.grace_steps,  # stops after 20 logged steps
@@ -157,7 +177,7 @@ def main(cmdl):
     )
 
     analysis = tune.run(
-        lambda x: tune_trial(x, base_cfg=base_cfg),
+        lambda x: tune_trial(x, base_cfg=base_cfg, get_objective=None),
         name=search_name,
         # config=search_space,
         search_alg=hyperopt_search,

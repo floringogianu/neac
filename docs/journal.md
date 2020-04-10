@@ -1,14 +1,60 @@
 # Project log
 
+# Jan 28
+
+---
+
+- Lost a lot of time with figuring out save/reload support for `pybullet`:
+  https://github.com/benelot/pybullet-gym/pull/42
+
+# Jan 27
+
+---
+
+Message to Kai Arulkumaran:
+
+Hi Kai, hope you are doing well. I was just wondering if you bumped into the
+following problem when working with NEC style algos. The differentiable
+neural dictionary (DND) receives a vector h of features in `R^n` for which
+you need to store a hash of this vector so that you can identify it later.
+This way, when the same representation is encountered again, the algorithm
+makes use of the "fast learning rule" and just updates the value associated
+with `h`.
+
+The issue that bothers me is that even if I don't update the feature
+extractor I get very few hits. Almost all the states (on envs such as
+LunarLander) are new for the DND, and the fast learning rule is never used.
+That's because `h` is a vector of real numbers so what I tried was decimating
+it, projecting it in smaller dimensions with a sparse random matrix, etc.
+What I noticed is that only if I decimate it to one decimal and project it a
+vector of size 6 or 8 I get some decent hit rate in DND, like ~30% of the
+incoming states are found in the DND.
+
+Did you encountered anything similar in your experiments? I distinctly
+remember having the same issue a couple of years ago when I tried
+implementing NEC for ATARI. If there is no workaround to this the implication
+is that the "fast learning rule" of the DND is **never used** in the original
+algorithm.
+
+# Jan 23. Restart this project
+
+---
+
+I need to figure out some stuff in order to breathe some life into this:
+
+- [ ] Implement Monte-Carlo return approximation and check to what extent
+      improving $V(s)$ actually matters.
+- [ ] Figure out how to actually make hashing work in the DND so that the
+      fast learning rate does something.
 
 # Dec 9. New results
+
 ---
 
 **I completed most of the empty TODOs from above:**
 
 - [x] Added histograms to `rlog`, didn't properly interpret them yet.
 - [x] Completed the robustness checks for both the baseline and **neAC**
-
 
 The curves below are averages of 10 different seeds for the best two
 configurations found by `ray.tune`. You can see **neAC** is still lagging
@@ -31,12 +77,11 @@ improvement, at least on this environment.
 ## Next steps:
 
 - Repeat these experiments on a more difficul environment, for example
-_Bipedal Walker_ with continuous actions.
+  _Bipedal Walker_ with continuous actions.
 - Find a way to make sure $V(s)$ is actually optimum.
 
-
-
 ## Dec 5. Regroup
+
 ---
 
 - [ ] Configure robustness check for A2C too.
@@ -46,18 +91,16 @@ _Bipedal Walker_ with continuous actions.
 
 :warning: Need to gain more insight into the way the value function should behave.
 
-
-
 ## Dec 2. Check robustness of the new found configs
+
 ---
 
 - [ ] Run the best configs on multiple seeds.
 - [ ] Implement and compare with _optimum_ critic.
 - [ ] Find a way to look into the value under-estimation problem of the DND.
 
-
-
 ## Nov 30, fewer neighbours pays off
+
 ---
 
 For the first time neAC consistently achieves ~200 points. There's still
@@ -69,9 +112,8 @@ baseline at this point.
 The value estimates though are still quite low.
 ![a2c returns](./img/30_nov_tune_knn_value_estimate.svg)
 
-
-
 ## Nov 29, implement learning rate anealing
+
 ---
 
 - also added support for anealing the critic's tabular learning rate (`dnd.lr`)
@@ -93,10 +135,12 @@ because they are killed by the hyperparameter search algo.
 ### Mean Episodic Return
 
 #### A2C
+
 A2C solve the env fairly fast.
 ![a2c returns](./img/a2c_return.png)
 
 #### neAC
+
 neAC shows quite a bit of promise in the first 15 evaluations (375,000
 steps). However it only reaches ~150 points consistently, and only in the
 first part of the training run.
@@ -106,10 +150,12 @@ first part of the training run.
 ### Mean Value Estimates
 
 #### A2C
+
 The value estimates seem all over the place.
 ![a2c returns](./img/a2c_value.png)
 
 #### neAC
+
 By contrast neAC's value estimate are much more controlled.
 
 :warning: However they don't go over 0, I need to figure out why is this happening.
@@ -131,14 +177,14 @@ number of K-Nearest-Neighbours in the config search. Tudor's intuition is
 that KNN can't extrapolate outside it's state space so I wanted to see if
 smaller K could drive the values up. Also need to look at the weghts.
 
-
-
 ## Nov 28, implement good inits
+
 ---
 
 - [#c9c5c34](https://github.com/floringogianu/neac/commit/c9c5c34f6968cdc7270b78c0c8e1f43c41452601)
-adds support for good initializations to start the tuning process from. For
-example the `search.yaml` file can now look like:
+  adds support for good initializations to start the tuning process from. For
+  example the `search.yaml` file can now look like:
+
 ```yaml
 hyperopt:
   lr: ["uniform", [0.0001, 0.005]]
@@ -148,7 +194,7 @@ hyperopt:
 
   dnd:
     size: ["choice", [1000, 3000, 5000, 10000, 20000, 30000]]
-    lr: ["uniform", [0.01, 0.7]] 
+    lr: ["uniform", [0.01, 0.7]]
     key_size: ["choice", [24, 32, 64]]
     use_critic_grads: ["choice", [True, False]]
 
@@ -174,9 +220,8 @@ good_inits:
       use_critic_grads: 1
 ```
 
+## Nov 27, confirm neAC too
 
-
-## Nov 27, confirm neAC too 
 ---
 
 - [x] Configure and launch **neAC** experiments too.
@@ -188,8 +233,8 @@ Initial results look bad on Acrobot, these hyperparameters are not robust
 troughout the training. I am adding two more configs which appear to be
 more stable.
 
-| Env           |      A2C               |         neAC           |
-|---------------|:----------------------:|:----------------------:|
+| Env           |          A2C           |          neAC          |
+| ------------- | :--------------------: | :--------------------: |
 | LunarLander-C | `b5`, `6e`, `6912ec4c` | `4dc127e8`, `97306f06` |
 | Acrobot       | `af`, `7d`, `7c1a7aae` | `aa315a12`, `1a3ed1d8` |
 
@@ -205,10 +250,9 @@ their stability. However they are not showing it.
 
 I am adding some more:
 
-| Env           |      A2C                  |         neAC           |
-|---------------|:-------------------------:|:----------------------:|
+| Env           |            A2C            |          neAC          |
+| ------------- | :-----------------------: | :--------------------: |
 | LunarLander-C | `b5`,`6e`,`69`,`9e7953d8` | `4dc127e8`, `97306f06` |
-
 
 It's becoming clear that `ray.tune` is simply selecting some lucky seeds. All
 four configurations below should have solved `LunarLander`.
@@ -218,21 +262,19 @@ four configurations below should have solved `LunarLander`.
 ### Summary
 
 - Check the issue of low performance configurations found by `ray.tune` on the
-discrete case too.
+  discrete case too.
 - Implement and look what happens with an optimal Value function.
 - Look at gradients.
 
-
-
 ## Nov 26, robustness check
+
 ---
 
 Select the best looking hyperparameters found by `ray.tune` for each
 environment and train on ten seeds.
 
-
-| Env           |      A2C               |         neAC           |
-|---------------|:----------------------:|:----------------------:|
+| Env           |          A2C           |          neAC          |
+| ------------- | :--------------------: | :--------------------: |
 | LunarLander-C | `b5cf56c4`, `6ead0806` | `4dc127e8`, `97306f06` |
 | LunarLander-D |                        |                        |
 | Acrobot       | `af32a06a`, `7d018958` | `aa315a12`, `1a3ed1d8` |
